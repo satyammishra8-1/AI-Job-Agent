@@ -110,6 +110,8 @@
   }
   .p-strong, .p-offer, .p-submitted   { --pf: #D1FAE5; --pc: #047857; }
   .p-applied, .p-interviewing         { --pf: #DBEAFE; --pc: #1D4ED8; }
+  .p-ready_to_apply, .p-under_review, .p-assessment { --pf: #DBEAFE; --pc: #1D4ED8; }
+  .p-withdrawn                        { --pf: #F3F4F6; --pc: #4B5563; }
   .p-new                              { --pf: #FEF3C7; --pc: #B45309; }
   .p-possible                         { --pf: #FEF3C7; --pc: #B45309; }
   .p-skip, .p-saved, .p-rejected, .p-unscored { --pf: #F3F4F6; --pc: #4B5563; }
@@ -211,11 +213,22 @@
   button { border-radius:8px; padding:8px 12px; font-weight:600; transition:transform .15s ease,border-color .15s ease,background .15s ease; }
   button:hover:not(:disabled) { transform:translateY(-1px); }
   .jobs-list,.apps-list { display:grid; gap:12px; }
+  .today-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:11px; margin-top:14px; }
+  .today-card { display:block; padding:14px 16px; border:1px solid var(--border); border-radius:12px;
+    color:var(--ink); background:#fff; box-shadow:var(--shadow); }
+  .today-card:hover { border-color:#c9cbfa; color:var(--ink); transform:translateY(-1px); }
+  .today-value { font-size:23px; line-height:1.1; font-weight:750; letter-spacing:-.03em; }
+  .today-label { margin-top:5px; color:var(--muted); font-size:11.5px; font-weight:650; }
+  .today-hint { margin-top:4px; color:var(--faint); font-size:10.5px; }
   .job-card { display:grid; grid-template-columns:minmax(0,1fr) 112px; gap:16px; padding:19px 20px; border:1px solid var(--border); border-radius:14px; background:#fff; box-shadow:var(--shadow); transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease; }
   .job-card:hover { border-color:#c9cbfa; box-shadow:0 12px 32px rgba(25,42,70,.09); transform:translateY(-1px); }
   .job-title { font-size:17px; font-weight:700; letter-spacing:-.025em; line-height:1.3; }
   .job-company { color:#3e4d63; font-size:13px; font-weight:600; margin-top:4px; }
   .job-meta { display:flex; flex-wrap:wrap; align-items:center; gap:7px 15px; margin-top:11px; color:var(--muted); font-size:11.5px; }
+  .job-signals { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .job-signal { padding:4px 8px; border:1px solid var(--border); border-radius:7px;
+    color:var(--muted); font-size:10.5px; background:#fafbfe; }
+  .job-signal b { color:#34445e; font-weight:700; }
   .job-meta span { display:inline-flex; align-items:center; gap:5px; } .job-meta .meta-dot { width:4px; height:4px; background:#a7b2c2; border-radius:50%; }
   .match-copy { color:var(--muted); font-size:11.5px; margin-top:13px; } .match-copy b { color:#34445e; font-weight:700; }
   .skill-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
@@ -231,6 +244,8 @@
   .app-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:16px 18px; background:#fff; border:1px solid var(--border); border-radius:13px; box-shadow:var(--shadow); }
   .app-company { font-size:14px; font-weight:700; } .app-role { color:var(--muted); font-size:12px; margin-top:2px; }
   .app-details { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; color:var(--muted); font-size:11px; } .app-side { display:flex; align-items:flex-start; gap:8px; }
+  .app-next { margin-top:9px; color:#384761; font-size:11.5px; }
+  .app-next b { color:var(--accent); font-weight:700; }
   .app-side select { min-width:120px; } .tile { display:flex; align-items:center; gap:13px; padding:15px 17px; border-radius:12px; }
   .tile .metric-icon { width:35px; height:35px; flex:none; display:grid; place-items:center; border-radius:10px; color:var(--accent); background:var(--accent-soft); font-size:13px; font-weight:800; }
   .tile .v { font-size:23px; line-height:1.1; } .tile .k { font-size:11px; text-transform:capitalize; margin-top:4px; }
@@ -257,7 +272,8 @@
   <span class="brand-mark" aria-hidden="true">J</span>
   <h1>Job Agent<span class="brand-caption">AI-powered job search copilot</span></h1>
   <nav class="topnav" aria-label="Main navigation">
-    <a class="active" href="#sec-jobs">Jobs</a><a href="#sec-apps">Applications</a>
+    <a class="active" href="#sec-today">Today</a><a href="#sec-jobs">Opportunities</a>
+    <a href="#sec-apps">Tracker</a>
     <button type="button" disabled aria-disabled="true" title="Profile settings are not available yet">Profile</button>
     <button type="button" disabled aria-disabled="true" title="Settings are not available yet">Settings</button>
   </nav>
@@ -265,18 +281,22 @@
 </header>
 
 <!-- ── Jobs (things to do — leads the page) ─────────────────────────────── -->
-<section id="sec-jobs">
+<section id="sec-today">
   <div class="hero">
     <div class="hero-copy"><div class="eyebrow">A smarter way to find your next role</div>
-      <h2>Find jobs that actually fit you.</h2>
-      <p>Job Agent searches relevant opportunities and ranks them against your skills, experience, and preferences.</p>
+      <h2>Your application day, at a glance.</h2>
+      <p>Review discovered opportunities, prepare applications, and keep follow-ups moving from one place.</p>
     </div>
     <div class="hero-controls"><button class="primary" id="btn-search">Find new jobs</button>
       <label class="days-control">Posted within <input id="days" type="number" min="1" max="90" value="30"> days</label>
     </div>
   </div>
-  <div class="section-heading"><div><h2>Your job matches</h2>
-    <div class="sec-sub" id="gen-at">Jobs found by your last search, best matches first.</div></div></div>
+  <div class="today-grid" id="today-summary" aria-live="polite"></div>
+</section>
+
+<section id="sec-jobs">
+  <div class="section-heading"><div><h2>Recommended opportunities</h2>
+    <div class="sec-sub" id="gen-at">Recommended opportunities, including lower-scoring roles, ordered by match.</div></div></div>
   <div class="toolbar">
     <span style="flex:1"></span>
     <label>Status <select id="jf-status"><option value="">all</option></select></label>
@@ -305,8 +325,8 @@
     <h2>Application tracker</h2>
     <button class="ghost" id="apps-toggle" aria-expanded="true">Hide</button>
   </div>
-  <div class="sec-sub">Every job you've saved or applied to — update its status,
-    add notes, and set follow-up reminders here. Click a tile to filter.</div>
+  <div class="sec-sub">Track applications, see match and next steps, update status,
+    add notes, and set follow-up reminders.</div>
   <div id="apps-body">
     <div class="tiles" id="tiles"></div>
     <div class="toolbar">
@@ -334,7 +354,8 @@
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g,
   (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const USER_STATUSES = ["saved", "applied", "interviewing", "offer", "rejected"];
+const USER_STATUSES = ["saved", "ready_to_apply", "applied", "under_review",
+  "assessment", "interviewing", "offer", "rejected", "withdrawn"];
 const ALL_STATUSES = ["submitted", "paused", "failed", ...USER_STATUSES];
 
 // Friendly display names. Internal values (API statuses, verdicts) never change —
@@ -342,8 +363,9 @@ const ALL_STATUSES = ["submitted", "paused", "failed", ...USER_STATUSES];
 // red=needs attention (always with a text label, never color alone).
 const LABELS = {
   submitted: "Submitted", paused: "Needs your input", failed: "Needs attention",
-  saved: "Saved", applied: "Applied", interviewing: "Interviewing",
-  offer: "Offer", rejected: "Not selected",
+  saved: "Saved", ready_to_apply: "Ready to apply", applied: "Applied",
+  under_review: "Under review", assessment: "Assessment", interviewing: "Interview",
+  offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn",
   strong: "Strong match", possible: "Possible match", skip: "Not a fit",
   unscored: "Not scored",
 };
@@ -351,6 +373,7 @@ const label = (v) => LABELS[v] || v;
 
 let APPS = [];   // /api/applications records
 let JOBS = [];   // /api/jobs jobs
+let JOB_META = null;
 
 async function api(path, opts) {
   const resp = await fetch(path, opts);
@@ -398,7 +421,7 @@ function renderTiles() {
   for (const s of ["submitted", "paused", "failed"])
     c[s] = APPS.filter((r) => r.status === s).length;
   const overdue = APPS.filter((r) => r.needs_follow_up).length;
-  const TILE_NAMES = {total: "jobs tracked", submitted: "submitted",
+  const TILE_NAMES = {total: "applications tracked", submitted: "submitted",
                       paused: "waiting on you", failed: "need attention"};
   const TILE_ICONS = {total: "↗", submitted: "✓", paused: "…", failed: "!"};
   const current = $("#af-status").value;
@@ -412,6 +435,29 @@ function renderTiles() {
       ${k === "total" && overdue ? `<div class="flag"><span class="pill p-followup">${overdue} need follow-up</span></div>` : ""}
     </div>`;
   }).join("");
+}
+
+function renderToday() {
+  const openCount = JOBS.filter((j) => !j.already_applied).length;
+  const newCount = JOBS.filter((j) => j.first_seen_this_scan === true).length;
+  const newValue = JOB_META && JOB_META.new_count === null ? "—"
+    : JOB_META ? String(newCount) : "—";
+  const ready = APPS.filter((r) => r.status === "ready_to_apply").length;
+  const followups = APPS.filter((r) => r.needs_follow_up).length;
+  const interviewStages = APPS.filter((r) =>
+    ["assessment", "interviewing"].includes(r.status)).length;
+  const cards = [
+    [openCount, "Opportunities to review", "All current results, across match scores", "#sec-jobs"],
+    [newValue, "New this scan", JOB_META === null ? "Run a search to see new roles"
+      : JOB_META.new_count === null ? "Baseline scan" : "First seen in this scan", "#sec-jobs"],
+    [ready, "Ready to apply", "Marked ready in your tracker", "#sec-apps"],
+    [followups, "Follow-ups due", "Needs a follow-up today", "#sec-apps"],
+    [interviewStages, "Interviews and assessments", "Tracked next stages", "#sec-apps"],
+  ];
+  $("#today-summary").innerHTML = cards.map((c) =>
+    '<a class="today-card" href="' + c[3] + '"><div class="today-value">' + esc(c[0]) +
+    '</div><div class="today-label">' + esc(c[1]) + '</div><div class="today-hint">' +
+    esc(c[2]) + '</div></a>').join("");
 }
 
 function renderApps() {
@@ -432,11 +478,17 @@ function renderApps() {
     const meta = {company: r.company, title: r.title, source: r.source};
     const key = r.job_id || r.attempt_id;
     const ids = {job_id: r.job_id || "", attempt_id: r.attempt_id || ""};
+    const match = Number.isFinite(Number(r.match_score)) && r.match_score !== null
+      ? '<span>Match: <b>' + esc(r.match_score) + '%</b></span>' : "";
+    const jobLink = r.job_url
+      ? '<span><a href="' + esc(r.job_url) + '" target="_blank" rel="noreferrer">View job</a></span>' : "";
     return '<article class="app-card" data-app-card="' + esc(key) + '">' +
       '<div><div class="app-company">' + esc(r.company) + '</div><div class="app-role">' + esc(r.title) + '</div>' +
-      '<div class="app-details"><span>' + esc((r.date || "").slice(0, 10)) + '</span><span>Source: ' + esc(r.source) + '</span>' +
+      '<div class="app-details"><span>Tracked: ' + esc((r.date || "").slice(0, 10)) + '</span><span>Source: ' + esc(r.source) + '</span>' +
+      match + jobLink +
       '<span>Follow up: ' + (esc(r.follow_up) || "?") + '</span>' +
       (r.notes ? '<span class="note-preview" title="' + esc(r.notes) + '">Note: ' + esc(r.notes) + '</span>' : '') + '</div>' +
+      '<div class="app-next"><b>Next action</b> · ' + esc(r.next_action || "Review application status") + '</div>' +
       '<div style="margin-top:10px">' + followFlag(r) + '</div></div>' +
       '<div class="app-side">' + statusSelect(r.job_id, r.status, meta, r.attempt_id) +
       '<button class="ghost" data-edit="' + esc(key) + '">Edit</button></div></article>' +
@@ -466,6 +518,7 @@ async function loadApps() {
   APPS = (await api("/api/applications")).records;
   fillFilter($("#af-status"), APPS.map((r) => r.status));
   fillFilter($("#af-source"), APPS.map((r) => r.source));
+  renderToday();
   renderApps();
 }
 
@@ -552,6 +605,16 @@ function renderJobs() {
     const missingHtml = missing.length
       ? '<div class="match-copy"><b>Potential gaps</b><div class="skill-list missing-list">' +
         missing.map((x) => '<span class="skill-chip">' + esc(x) + '</span>').join("") + '</div></div>' : "";
+    const resumeStatus = j.tailored_resume_ready === true ? "Tailored PDF ready"
+      : j.tailored_resume_ready === false ? "Resume not tailored" : "Resume status unavailable";
+    const signals = '<div class="job-signals">' +
+      '<span class="job-signal"><b>Eligibility</b> Not assessed</span>' +
+      '<span class="job-signal"><b>Verification</b> Not independently verified</span>' +
+      '<span class="job-signal"><b>ATS</b> Readiness not assessed</span>' +
+      '<span class="job-signal"><b>Resume</b> ' + esc(resumeStatus) + '</span></div>';
+    const nextAction = t?.next_action ||
+      (j.tailored_resume_ready ? "Review your tailored resume before applying"
+        : "Review hard requirements, then tailor your resume");
     const appliedPill = j.already_applied ? ' <span class="pill p-applied">already applied</span>' : "";
     const newPill = j.first_seen_this_scan === true ? ' <span class="pill p-new">NEW</span>' : "";
     const scoreHtml = score === null
@@ -566,7 +629,8 @@ function renderJobs() {
       '<span><i class="meta-dot"></i>' + esc(j.source || "Source unavailable") + '</span>' +
       (posted ? '<span><i class="meta-dot"></i>' + esc(posted) + '</span>' : '') + '</div>' +
       '<div class="match-copy"><b>' + esc(strength) + '</b>' + pill(verdict) +
-      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml +
+      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml + signals +
+      '<div class="app-next"><b>Next action</b> · ' + esc(nextAction) + '</div>' +
       '<div class="job-actions">' + view +
       '<button class="primary" data-apply="' + esc(j.id) + '" title="Open this job in your own browser; you review and submit">Apply</button>' +
       '<button data-mark="' + esc(j.id) + '">' + (t?.status === "applied" ? "Undo applied" : "Mark applied") + '</button>' +
@@ -585,9 +649,11 @@ function renderJobs() {
 async function loadJobs() {
   const data = await api("/api/jobs");
   JOBS = data.jobs;
+  JOB_META = data.meta;
   renderJobsMeta(data.generated_at, data.meta);
   fillFilter($("#jf-source"), JOBS.map((j) => j.source));
   fillFilter($("#jf-status"), JOBS.map((j) => j.tracked?.status));
+  renderToday();
   renderJobs();
 }
 
@@ -602,8 +668,10 @@ async function runSearch() {
     log.textContent = data.output || "";
     log.classList.toggle("err", !data.ok);
     JOBS = data.jobs;
+    JOB_META = data.meta;
     renderJobsMeta(data.generated_at, data.meta);
     fillFilter($("#jf-source"), JOBS.map((j) => j.source));
+    renderToday();
     renderJobs();
   } catch (e) {
     log.classList.add("err"); log.textContent = "Search failed: " + e.message;
@@ -622,7 +690,7 @@ async function saveTrack(ids, fields, meta, outEl) {
     if (i >= 0) APPS[i] = rec; else APPS.unshift(rec);
     const j = JOBS.find((x) => rec.job_id && String(x.id) === String(rec.job_id));
     if (j) j.tracked = rec;
-    renderApps(); renderJobs();
+    renderToday(); renderApps(); renderJobs();
     if (outEl) outEl.textContent = "Saved ✓";
   } catch (e) {
     // never fail silently — a dropdown change has no inline output element

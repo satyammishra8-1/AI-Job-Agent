@@ -60,6 +60,11 @@ def test_applications_endpoint_returns_records_and_counts(client):
                               "needs_follow_up": 0}
     assert [r["company"] for r in data["records"]] == ["Ramp", "Stripe", "Plaid"]  # newest first
     assert data["records"][1]["status"] == "submitted"
+    submitted = data["records"][1]
+    assert submitted["match_score"] == 55
+    assert submitted["job_url"] == "http://y"
+    assert submitted["next_action"] == "Set a follow-up date"
+    assert data["records"][2]["next_action"] == "Resolve the application hold"
 
 
 def test_applications_endpoint_with_no_log_is_empty_not_an_error(tmp_path):
@@ -103,6 +108,7 @@ def test_jobs_endpoint_serves_the_last_search_ranked(client):
     assert [j["id"] for j in data["jobs"]] == ["j1", "j2"]        # score-ranked
     assert data["jobs"][0]["verdict"] == "strong"
     assert data["jobs"][0]["score"] == 88
+    assert data["jobs"][0]["tailored_resume_ready"] is None
 
 
 def test_search_endpoint_runs_the_pipeline_and_returns_fresh_jobs(tmp_path):

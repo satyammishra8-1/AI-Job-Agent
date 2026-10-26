@@ -130,7 +130,8 @@ def test_different_jobs_still_get_their_own_records(tmp_path):
 # --- user-managed state: status pipeline, notes, follow-up --------------------------
 
 def test_user_statuses_are_valid_alongside_run_statuses():
-    for status in ("saved", "applied", "interviewing", "offer", "rejected"):
+    for status in ("saved", "ready_to_apply", "applied", "under_review",
+                   "assessment", "interviewing", "offer", "rejected", "withdrawn"):
         assert _record(status=status).status == status
 
 
@@ -187,11 +188,17 @@ def test_applied_markers_cover_the_in_flight_statuses_only(tmp_path):
                                 title="AI Engineer"))
     record_attempt(log, _record(job_id="a4", status="saved", company="Figma",
                                 title="DS"))
+    record_attempt(log, _record(job_id="a5", status="assessment", company="Notion",
+                                title="SWE"))
+    record_attempt(log, _record(job_id="a6", status="withdrawn", company="Figma",
+                                title="Backend Engineer"))
     markers = applied_markers(log)
     assert is_already_applied(markers, job_id="a1", company="", title="")
     assert is_already_applied(markers, job_id="a2", company="", title="")
+    assert is_already_applied(markers, job_id="a5", company="", title="")
     assert not is_already_applied(markers, job_id="a3", company="", title="")   # paused
     assert not is_already_applied(markers, job_id="a4", company="", title="")   # saved
+    assert not is_already_applied(markers, job_id="a6", company="", title="")   # withdrawn
 
 
 def test_company_title_rematch_catches_a_different_job_id(tmp_path):

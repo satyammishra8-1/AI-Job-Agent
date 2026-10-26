@@ -23,10 +23,11 @@ from job_agent.json_store import read_json, write_json_atomic
 
 #: Run statuses (written by run_apply): submitted — really sent; paused —
 #: awaiting the human (dry-run, skipped, mid-run); failed — the run crashed.
-#: User statuses (set from the dashboard): saved → applied → interviewing →
-#: offer / rejected.
-Status = Literal["submitted", "paused", "failed",
-                 "saved", "applied", "interviewing", "offer", "rejected"]
+#: User statuses (set from the dashboard): saved → ready_to_apply → applied →
+#: under_review / assessment / interviewing → offer / rejected / withdrawn.
+Status = Literal["submitted", "paused", "failed", "saved", "ready_to_apply",
+                 "applied", "under_review", "assessment", "interviewing",
+                 "offer", "rejected", "withdrawn"]
 
 
 class ApplicationRecord(BaseModel):
@@ -115,9 +116,11 @@ def update_status(path: str | Path, attempt_id: str, status: Status,
 
 
 #: A job with one of these statuses has an application in flight — search views
-#: hide it (re-applying would be a duplicate). "rejected"/"saved"/"paused" stay
-#: visible: nothing was successfully applied, or the human may want to retry.
-APPLIED_STATUSES = frozenset({"applied", "submitted", "interviewing", "offer"})
+#: hide it (re-applying would be a duplicate). Saved, ready, paused, rejected,
+#: failed, and withdrawn records remain visible for review or retry.
+APPLIED_STATUSES = frozenset({
+    "applied", "submitted", "under_review", "assessment", "interviewing", "offer",
+})
 
 
 def _match_key(text: str) -> str:

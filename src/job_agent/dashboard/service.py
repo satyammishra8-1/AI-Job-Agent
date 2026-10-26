@@ -44,6 +44,28 @@ def _needs_follow_up(record, *, now: datetime | None = None,
     return bool(record.follow_up) and record.follow_up <= today
 
 
+def _next_action(record, *, needs_follow_up: bool) -> str:
+    """Return a clear next step based only on the tracked application state."""
+    if needs_follow_up:
+        return "Follow up now"
+    if record.status in {"submitted", "applied", "under_review"} and record.follow_up:
+        return f"Follow up by {record.follow_up}"
+    return {
+        "saved": "Review the role and tailor your resume",
+        "ready_to_apply": "Review your resume, then apply",
+        "submitted": "Set a follow-up date",
+        "applied": "Set a follow-up date",
+        "under_review": "Check for an update",
+        "assessment": "Prepare for the assessment",
+        "interviewing": "Prepare for the interview",
+        "offer": "Review the offer",
+        "paused": "Resolve the application hold",
+        "failed": "Review the failed application attempt",
+        "rejected": "No action planned",
+        "withdrawn": "No action planned",
+    }.get(record.status, "Review application status")
+
+
 def _dedupe_jobs(records: list) -> list:
     """One row per JOB (records arrive newest-first, so first-seen = latest).
 
@@ -69,17 +91,31 @@ def _dedupe_jobs(records: list) -> list:
     return out
 
 
-def applications_view(log_path: str | Path) -> dict:
+def applications_view(log_path: str | Path,
+                      last_search_path: str | Path | None = None) -> dict:
     """All tracked applications, newest first (one row per job), plus counts."""
     records = _dedupe_jobs(
         sorted(load_applications(log_path), key=lambda r: r.date, reverse=True))
+    search_jobs: dict[str, dict] = {}
+    if last_search_path is not None:
+        data = read_json(last_search_path, {})
+        if isinstance(data, dict) and isinstance(data.get("jobs"), dict):
+            search_jobs = data["jobs"]
     counts = {"total": len(records)}
     for status in ("submitted", "paused", "failed"):
         counts[status] = sum(1 for r in records if r.status == status)
     counts["needs_follow_up"] = sum(1 for r in records if _needs_follow_up(r))
     return {
-        "records": [{**r.model_dump(), "needs_follow_up": _needs_follow_up(r)}
-                    for r in records],
+        "records": [
+            {
+                **r.model_dump(),
+                "needs_follow_up": _needs_follow_up(r),
+                "next_action": _next_action(r, needs_follow_up=_needs_follow_up(r)),
+                "job_url": (search_jobs.get(r.job_id) or {}).get("url"),
+                "match_score": (search_jobs.get(r.job_id) or {}).get("score"),
+            }
+            for r in records
+        ],
         "counts": counts,
     }
 
@@ -87,7 +123,9 @@ def applications_view(log_path: str | Path) -> dict:
 # --- section 2: search + browse -------------------------------------------------------
 
 def jobs_view(last_search_path: str | Path,
-              tracker_path: str | Path | None = None) -> dict:
+              tracker_path: str | Path | None = None, *,
+              facts_path: str | Path | None = None,
+              out_dir: str | Path | None = None) -> dict:
     """The latest saved search, ranked like the CLI table, with each job's
     tracked state (status / notes / follow-up) joined in by job id."""
     path = Path(last_search_path)
@@ -99,6 +137,19 @@ def jobs_view(last_search_path: str | Path,
     if not isinstance(data, dict) or not isinstance(data.get("jobs", {}), dict):
         raise ValueError(f"Invalid search data in {path}: expected an object with jobs")
     jobs = list(data.get("jobs", {}).values())
+    facts = None
+    if facts_path is not None and out_dir is not None:
+        from job_agent.tailor.career_facts import load_career_facts
+
+        try:
+            facts = load_career_facts(facts_path)
+        except (FileNotFoundError, ValueError):
+            pass
+    for job in jobs:
+        job["tailored_resume_ready"] = (
+            _tailored_resume_path(job, facts=facts, out_dir=out_dir) is not None
+            if facts is not None and out_dir is not None else None
+        )
     jobs.sort(key=lambda j: (_VERDICT_RANK.get(j.get("verdict"), 0),
                              j.get("score") if j.get("score") is not None else -1),
               reverse=True)
@@ -109,8 +160,11 @@ def jobs_view(last_search_path: str | Path,
 
         for r in load_applications(tracker_path):     # later records win
             if r.job_id:
+                needs_follow_up = _needs_follow_up(r)
                 tracked[r.job_id] = {**r.model_dump(),
-                                     "needs_follow_up": _needs_follow_up(r)}
+                                     "needs_follow_up": needs_follow_up,
+                                     "next_action": _next_action(
+                                         r, needs_follow_up=needs_follow_up)}
         markers = applied_markers(tracker_path)
     from job_agent.apply.tracker import is_already_applied
 
@@ -121,6 +175,19 @@ def jobs_view(last_search_path: str | Path,
             title=j.get("title", ""))
     return {"generated_at": data.get("generated_at"),
             "meta": data.get("meta"), "jobs": jobs}
+
+
+def _tailored_resume_path(record: dict, *, facts, out_dir: str | Path) -> Path | None:
+    """Resolve a resume for the given record using the safe, shared filename rule."""
+    from job_agent.cli import _resume_filename
+
+    root = Path(out_dir).resolve()
+    filename = _resume_filename(facts.name.split()[0],
+                                record.get("title", ""), record.get("company", ""))
+    pdf = (root / f"{filename}.pdf").resolve()
+    if pdf.parent != root or not pdf.exists():
+        return None
+    return pdf
 
 
 def _run_cli(handler, ns: Namespace) -> dict:
@@ -196,20 +263,13 @@ def resume_pdf_path(record: dict, *, facts_path: Path, out_dir: Path) -> Path | 
     """The tailored PDF for this job, or None. NEVER escapes ``out_dir``:
     the filename is derived (slugged) from the stored record — no user path —
     and the resolved location is verified to sit inside the output directory."""
-    from job_agent.cli import _resume_filename
     from job_agent.tailor.career_facts import load_career_facts
 
     try:
         facts = load_career_facts(facts_path)
     except (FileNotFoundError, ValueError):
         return None
-    filename = _resume_filename(facts.name.split()[0],
-                                record.get("title", ""), record.get("company", ""))
-    out_dir = Path(out_dir).resolve()
-    pdf = (out_dir / f"{filename}.pdf").resolve()
-    if pdf.parent != out_dir or not pdf.exists():
-        return None
-    return pdf
+    return _tailored_resume_path(record, facts=facts, out_dir=out_dir)
 
 
 def serialize_plan(plan) -> dict:

@@ -285,9 +285,11 @@ tracked state joined in, and drives the same CLI code paths:
   since", so no row is badged and the new-count is omitted rather than showing
   a misleading number.
 - **Application tracker** (`apply/tracker.py`, gitignored
-  `data/applications.json`): per-job status (saved / applied / interviewing /
-  offer / rejected), notes, and follow-up dates (due dates use Asia/Kolkata,
-  UTC+05:30). Jobs with an in-flight
+  `data/applications.json`): per-job status (saved / ready to apply / applied /
+  under review / assessment / interview / offer / rejected / withdrawn), notes,
+  and follow-up dates (due dates use Asia/Kolkata, UTC+05:30). The dashboard
+  joins saved match scores and job links where available and suggests a next
+  action from the current status. Jobs with an in-flight
   application are hidden from search results by default, in both the CLI and
   the UI. A one-click **Mark applied / Undo** works whether or not autofill
   ever ran.

@@ -132,19 +132,22 @@ def create_app(*, data_dir: Path = Path("data"),
 
     @app.get("/api/applications")
     def applications() -> dict:
-        return service.applications_view(data_dir / "applications.json")
+        return service.applications_view(data_dir / "applications.json",
+                                         data_dir / "last_search.json")
 
     @app.get("/api/jobs")
     def jobs() -> dict:
         return service.jobs_view(data_dir / "last_search.json",
-                                 data_dir / "applications.json")
+                                 data_dir / "applications.json",
+                                 facts_path=facts_path, out_dir=out_dir)
 
     @app.post("/api/search")
     def run_search(req: SearchRequest) -> dict:
         result = searcher(req.days)
         # whatever the run printed, the table shows what's now on disk
         return {**result, **service.jobs_view(data_dir / "last_search.json",
-                                              data_dir / "applications.json")}
+                                              data_dir / "applications.json",
+                                              facts_path=facts_path, out_dir=out_dir)}
 
     @app.post("/api/track")
     def track(req: TrackRequest) -> dict:
