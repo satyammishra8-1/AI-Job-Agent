@@ -35,7 +35,7 @@ class Job(BaseModel):
     source: SourceName
     apply_url: str | None = None
     # Timezone-aware. None when the source exposes no post date and no cache hit
-    # exists yet (see seen_cache.py for the fallback used by the 24h filter).
+    # exists yet (see seen_cache.py for the selected-window fallback).
     posted_at: datetime | None = None
     remote: bool | None = None
     # Best-effort country marker for the location rule; None when unknown.

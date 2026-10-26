@@ -282,7 +282,8 @@ tracked state joined in, and drives the same CLI code paths:
   a misleading number.
 - **Application tracker** (`apply/tracker.py`, gitignored
   `data/applications.json`): per-job status (saved / applied / interviewing /
-  offer / rejected), notes, and follow-up dates. Jobs with an in-flight
+  offer / rejected), notes, and follow-up dates (due dates use Asia/Kolkata,
+  UTC+05:30). Jobs with an in-flight
   application are hidden from search results by default, in both the CLI and
   the UI. A one-click **Mark applied / Undo** works whether or not autofill
   ever ran.

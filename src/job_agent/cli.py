@@ -108,7 +108,7 @@ def _print_ranked_table(console: Console, scored: list[ScoredJob], limit: int | 
     if limit is not None:
         ranked = ranked[:limit]
     if not ranked:
-        console.print("[dim]No jobs to show. Nothing matched the last 24h + your filters.[/dim]")
+        console.print("[dim]No jobs to show. Nothing matched the selected recency window + your filters.[/dim]")
         return
     table = Table(title="Ranked job matches", header_style="bold")
     for col, kw in [("#", {"justify": "right", "width": 3}), ("Score", {"justify": "right", "width": 5}),
@@ -610,7 +610,7 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("--days", type=int, default=30,
                    help="Recency window in days (default 30).")
     s.add_argument("--max-age-hours", type=int, default=None,
-                   help="Recency window in hours; overrides --days when given.")
+                   help="Recency window in hours; overrides --days when explicitly given.")
     s.add_argument("--limit", type=int, default=None)
     s.add_argument("--method", choices=["structured", "tool"], default="structured")
     s.add_argument("--include-applied", action="store_true",

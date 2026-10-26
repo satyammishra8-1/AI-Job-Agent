@@ -100,7 +100,7 @@ def test_work_mode_matches_select_option():
 
 def test_resume_file_field_uploads_tailored_pdf():
     plan = _plan_for([_f("#resume", FieldType.FILE, "Resume", required=True)])
-    assert _value(plan, "#resume") == "/tmp/resume.pdf"
+    assert _value(plan, "#resume") == str(Path("/tmp/resume.pdf"))
     assert _sources(plan)["#resume"] == "resume (tailored PDF)"
 
 
@@ -1089,4 +1089,4 @@ def test_apply_plan_only_touches_planned_fields():
     touched = {sel for _, sel, _ in page.calls}
     assert "#email" in touched and "#resume" in touched and "#mode" in touched
     assert "#mystery" not in touched
-    assert ("upload", "#resume", "/tmp/resume.pdf") in page.calls
+    assert ("upload", "#resume", str(Path("/tmp/resume.pdf"))) in page.calls

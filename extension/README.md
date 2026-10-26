@@ -79,7 +79,7 @@ show under "Needs your answer".
    3. Click **Load unpacked** and pick this `extension/` directory
    4. Pin "Job Agent Autofill" to the toolbar
 
-3. **(Recommended) Pin the extension ID.** After loading, copy the extension's
+3. **Pin the extension ID.** After loading, copy the extension's
    ID from `chrome://extensions` and start the backend with it, so ONLY your
    copy of the extension may call the API:
 
@@ -87,8 +87,9 @@ show under "Needs your answer".
    JOB_AGENT_EXTENSION_ID=<your 32-char id> python -m job_agent dashboard
    ```
 
-   Without it, any `chrome-extension://` origin is admitted (web pages never
-   are, either way).
+   The backend rejects extension API requests until this ID is configured. This
+   prevents other installed browser extensions from reading or changing local
+   application data.
 
 4. If your backend runs on a non-default port, set it in the popup's footer.
 

@@ -1,7 +1,7 @@
 """Mock jobs for `--demo` mode.
 
 These let anyone clone the repo and run the whole pipeline with no API key and no
-network. Timestamps are generated relative to "now" so the 24h filter keeps the
+network. Timestamps are generated relative to "now" so the default freshness filter keeps the
 fresh ones and drops the stale one, demonstrating the filter without live calls.
 """
 
@@ -111,7 +111,7 @@ def demo_jobs(now: datetime | None = None) -> list[Job]:
             url="https://example.com/jobs/demo-6",
             apply_url="https://example.com/jobs/demo-6/apply",
             source="demo",
-            posted_at=hours_ago(40),  # older than 24h — dropped by freshness
+            posted_at=now - timedelta(days=40),  # older than default 30d — dropped
             remote=True,
             country="US",
             description="Matches keywords and location, but posted 40h ago.",

@@ -21,6 +21,8 @@ worker thread that owns the browser, and public methods marshal calls into it.
 from __future__ import annotations
 
 import threading
+import hashlib
+import json
 from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,6 +94,7 @@ class ApplySession:
         self._warnings: list[str] = []
         self._attempt_id = ""
         self._closed = False
+        self._last_review_digest = ""
 
         self._commands: Queue = Queue()
         self._thread = threading.Thread(target=self._loop, daemon=True,
@@ -109,8 +112,8 @@ class ApplySession:
     def edit(self, selector: str, value: str, mark_done: bool = False) -> dict:
         return self._invoke(self._edit, selector, value, mark_done)
 
-    def submit(self) -> dict:
-        return self._invoke(self._submit)
+    def submit(self, approval_token: str) -> dict:
+        return self._invoke(self._submit, approval_token)
 
     def cancel(self) -> dict:
         return self._invoke(self._cancel)
@@ -205,14 +208,79 @@ class ApplySession:
                     f"set it in the browser window")
         return self._state()
 
-    def _submit(self, stack: ExitStack) -> dict:
+    def _browser_state(self):
+        """Capture the live destination, form controls, values, and validity."""
+        if self._page is None:
+            raise SubmitBlocked("application page is not available")
+        try:
+            return self._page.evaluate("""() => ({
+          url: location.href,
+          page_text: (document.body && document.body.innerText || '').slice(0, 100000),
+          forms_html: Array.from(document.forms).map(f => f.outerHTML),
+          controls: Array.from(document.querySelectorAll(
+            'input,select,textarea,[role="combobox"],[role="checkbox"],[role="radio"],[contenteditable="true"]'
+          )).map(e => ({
+            name: e.name || '', id: e.id || '', type: e.type || '',
+            value: e.value || '', checked: !!e.checked,
+            selected: e.tagName === 'SELECT' ? e.value : '',
+            label: e.getAttribute('aria-label') || '',
+            placeholder: e.getAttribute('placeholder') || '',
+            required: !!e.required,
+            text: e.isContentEditable ? e.innerText : ''
+          })),
+          invalid: Array.from(document.querySelectorAll('input,select,textarea'))
+            .filter(e => typeof e.checkValidity === 'function' && !e.checkValidity())
+            .map(e => e.id || e.name || e.type || 'required control'),
+          forms: Array.from(document.forms).map(f => ({
+            action: f.action,
+            valid: f.checkValidity()
+          }))
+            })""")
+        except Exception as exc:
+            if _is_page_closed(exc):
+                raise SubmitBlocked("the browser window was closed; nothing was submitted") from exc
+            raise
+
+    def _review_digest(self) -> str:
+        state = {
+            "job_id": str(self._record.get("id", "")),
+            "company": self._record.get("company", ""),
+            "title": self._record.get("title", ""),
+            "source": self._record.get("source", ""),
+            "apply_url": self._record.get("apply_url") or self._record.get("url", ""),
+            "plan": serialize_plan(self._plan),
+            "browser": self._browser_state(),
+        }
+        payload = json.dumps(state, sort_keys=True, ensure_ascii=True, default=str)
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def _submit(self, stack: ExitStack, approval_token: str) -> dict:
+        if not self._form_readable:
+            raise SubmitBlocked("application form is not readable; re-read and review it before submitting")
+        if not approval_token or approval_token != self._last_review_digest:
+            self._last_review_digest = ""
+            raise SubmitBlocked("review state changed or approval expired; review the form again")
+        current_digest = self._review_digest()
+        if current_digest != self._last_review_digest:
+            self._last_review_digest = ""
+            raise SubmitBlocked("application changed after review; re-read and approve it again")
+        browser_state = self._browser_state()
+        if isinstance(browser_state, dict) and browser_state.get("invalid"):
+            self._last_review_digest = ""
+            raise SubmitBlocked("the live form has missing or invalid required fields")
+        if isinstance(browser_state, dict) and any(
+                not form.get("valid", True) for form in browser_state.get("forms", [])):
+            self._last_review_digest = ""
+            raise SubmitBlocked("the live form has missing or invalid required fields")
         missing = self._plan.missing_required()
         if missing:
+            self._last_review_digest = ""
             names = ", ".join(u.field.describe() for u in missing[:4])
             raise SubmitBlocked(
                 f"{len(missing)} required field(s) still unfilled ({names}) — "
                 f"edit them or mark them done first")
         outcome = ReviewOutcome(Decision.APPROVE, self._plan)
+        self._last_review_digest = ""  # one approval authorizes exactly one attempt
         try:
             result = run_submit(
                 self._page, self._plan, outcome, submit_flag=True,
@@ -240,12 +308,18 @@ class ApplySession:
         return {"result": {"status": "cancelled"}}
 
     def _state(self) -> dict:
+        try:
+            digest = self._review_digest() if self._page is not None else ""
+        except SubmitBlocked:
+            digest = ""
+        self._last_review_digest = digest
         return {
             "job": {"id": self._record.get("id"),
                     "title": self._record.get("title"),
                     "company": self._record.get("company")},
             "form_readable": self._form_readable,
             "message": self._message,
+            "approval_token": digest,
             "warnings": list(self._warnings),
             **serialize_plan(self._plan),
         }

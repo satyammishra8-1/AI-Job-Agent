@@ -11,24 +11,37 @@ interactive ``job_agent apply --job <id> --submit`` flow with its human gate.
 from __future__ import annotations
 
 from argparse import Namespace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from rich.console import Console
 
 from job_agent.apply.tracker import load_applications
 from job_agent.store import resolve_apply_url
+from job_agent.json_store import read_json
 
 _VERDICT_RANK = {"strong": 3, "possible": 2, "skip": 1, "unscored": 0}
 
 
 # --- section 1: application pipeline -------------------------------------------------
 
-def _needs_follow_up(record) -> bool:
+FOLLOW_UP_TIMEZONE = "Asia/Kolkata"
+_FOLLOW_UP_ZONE = timezone(timedelta(hours=5, minutes=30), name=FOLLOW_UP_TIMEZONE)
+
+
+def _needs_follow_up(record, *, now: datetime | None = None,
+                     timezone_name: str = FOLLOW_UP_TIMEZONE) -> bool:
     """True when the record's follow-up date has passed (ISO dates compare
     lexicographically, so no parsing is needed)."""
-    from datetime import date
-
-    return bool(record.follow_up) and record.follow_up <= date.today().isoformat()
+    # India has a fixed UTC+05:30 offset, so this explicit timezone works on
+    # Windows too, where the OS may not provide an IANA timezone database.
+    if timezone_name != FOLLOW_UP_TIMEZONE:
+        raise ValueError(f"Unsupported follow-up timezone: {timezone_name}")
+    current = now or datetime.now(_FOLLOW_UP_ZONE)
+    if current.tzinfo is None or current.utcoffset() is None:
+        raise ValueError("follow-up calculation requires a timezone-aware datetime")
+    today = current.astimezone(_FOLLOW_UP_ZONE).date().isoformat()
+    return bool(record.follow_up) and record.follow_up <= today
 
 
 def _dedupe_jobs(records: list) -> list:
@@ -77,15 +90,14 @@ def jobs_view(last_search_path: str | Path,
               tracker_path: str | Path | None = None) -> dict:
     """The latest saved search, ranked like the CLI table, with each job's
     tracked state (status / notes / follow-up) joined in by job id."""
-    import json
-
     path = Path(last_search_path)
     if not path.exists():
         return {"generated_at": None, "meta": None, "jobs": []}
-    try:
-        data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
+    data = read_json(path, None)
+    if data is None:
         return {"generated_at": None, "meta": None, "jobs": []}
+    if not isinstance(data, dict) or not isinstance(data.get("jobs", {}), dict):
+        raise ValueError(f"Invalid search data in {path}: expected an object with jobs")
     jobs = list(data.get("jobs", {}).values())
     jobs.sort(key=lambda j: (_VERDICT_RANK.get(j.get("verdict"), 0),
                              j.get("score") if j.get("score") is not None else -1),

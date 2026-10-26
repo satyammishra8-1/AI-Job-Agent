@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, model_validator
 
 from job_agent.apply.tracker import Status, upsert_job_state
@@ -31,6 +31,10 @@ class JobRequest(BaseModel):
 
 class SessionRequest(BaseModel):
     session_id: str = Field(min_length=1)
+
+
+class SubmitSessionRequest(SessionRequest):
+    approval_token: str = Field(min_length=1, max_length=100)
 
 
 class EditRequest(SessionRequest):
@@ -89,7 +93,26 @@ def create_app(*, data_dir: Path = Path("data"),
     # The Chrome extension calls this app cross-origin; nothing else may.
     from fastapi.middleware.cors import CORSMiddleware
 
-    from job_agent.dashboard.extension_api import cors_config, create_extension_router
+    from job_agent.dashboard.extension_api import (
+        cors_config, create_extension_router, is_trusted_extension_origin,
+    )
+
+    @app.middleware("http")
+    async def reject_cross_origin_mutations(request, call_next):
+        """CORS is not CSRF protection; validate browser Origin on mutations."""
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            origin = request.headers.get("origin")
+            # Non-browser local clients do not send Origin. Browser requests
+            # must originate in this local UI or the configured extension.
+            if origin:
+                from urllib.parse import urlsplit
+
+                parts = urlsplit(origin)
+                local_ui = (parts.scheme == "http" and parts.hostname in
+                            {"127.0.0.1", "localhost", "::1"})
+                if not local_ui and not is_trusted_extension_origin(origin):
+                    return JSONResponse({"detail": "untrusted request origin"}, status_code=403)
+        return await call_next(request)
 
     app.add_middleware(CORSMiddleware, **cors_config())
     # Shared with the extension router: the real-browser apply channel.
@@ -152,7 +175,10 @@ def create_app(*, data_dir: Path = Path("data"),
     @app.post("/api/apply/preview")
     def apply_preview(req: JobRequest) -> dict:
         _require_job(req.job_id)
-        return previewer(req.job_id)
+        try:
+            return previewer(req.job_id)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
 
     # --- apply in the user's REAL browser (extension does the filling) -----
 
@@ -162,7 +188,10 @@ def create_app(*, data_dir: Path = Path("data"),
         a fill task for the extension. No Playwright, no filling, no
         submission here — the human drives everything from their browser."""
         record = _require_job(req.job_id)
-        url = resolve_apply_url(record)
+        try:
+            url = resolve_apply_url(record)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
         if not url:
             raise HTTPException(404, "this job record has no apply URL")
         from datetime import datetime, timezone
@@ -200,6 +229,9 @@ def create_app(*, data_dir: Path = Path("data"),
         sessions[session_id] = session
         try:
             state = session.start()
+        except ValueError as exc:
+            sessions.pop(session_id, None)
+            raise HTTPException(400, str(exc)) from exc
         except Exception:
             sessions.pop(session_id, None)
             raise
@@ -216,12 +248,12 @@ def create_app(*, data_dir: Path = Path("data"),
         return {"session_id": req.session_id, **state}
 
     @app.post("/api/apply/submit")
-    def apply_submit(req: SessionRequest) -> dict:
+    def apply_submit(req: SubmitSessionRequest) -> dict:
         from job_agent.dashboard.apply_session import SubmitBlocked
 
         session = _session(req.session_id)
         try:
-            result = session.submit()      # the ONLY path to a real submission
+            result = session.submit(req.approval_token)  # tied to the reviewed state
         except SubmitBlocked as exc:
             raise HTTPException(409, str(exc)) from exc
         sessions.pop(req.session_id, None)

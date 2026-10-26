@@ -149,6 +149,24 @@ def test_resolve_apply_url_prefers_apply_url_then_url_verbatim():
     assert resolve_apply_url({}) is None
 
 
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "file:///etc/passwd",
+                                  "data:text/html,hi", "http://localhost/x",
+                                  "http://127.0.0.1/x", "http://192.168.1.2/x",
+                                  "http://[::1]/x", "http://169.254.1.1/x"])
+def test_resolve_apply_url_rejects_unsafe_destinations(url):
+    from job_agent.store import resolve_apply_url
+    with pytest.raises(ValueError):
+        resolve_apply_url({"apply_url": url})
+
+
+def test_resolve_apply_url_accepts_public_http_and_https_urls():
+    from job_agent.store import resolve_apply_url
+    assert resolve_apply_url({"url": "https://jobs.example/role?a=1"}) == \
+        "https://jobs.example/role?a=1"
+    assert resolve_apply_url({"url": "http://jobs.example/role"}) == \
+        "http://jobs.example/role"
+
+
 def test_apply_navigation_falls_back_to_url_when_apply_url_is_missing(tmp_path):
     record = {**SR_RECORD}
     del record["apply_url"]
@@ -242,10 +260,10 @@ def test_submit_after_the_window_was_closed_is_refused_not_a_crash(tmp_path):
     session, _, _ = _session(tmp_path, page=page)
     session.start()
     session.edit("#why", "Because I build ML platforms.")
-    session.edit("#consent", "(completed in the browser)", mark_done=True)
+    state = session.edit("#consent", "(completed in the browser)", mark_done=True)
     page.closed = True
     with pytest.raises(SubmitBlocked, match="browser window was closed"):
-        session.submit()
+        session.submit(state["approval_token"])
     session.cancel()                         # tracker still resolves to paused
     (rec,) = load_applications(tmp_path / "applications.json")
     assert rec.status == "paused"
@@ -291,26 +309,64 @@ def test_mark_done_resolves_the_field_without_touching_the_page(tmp_path):
 
 def test_submit_is_refused_while_required_fields_are_missing(tmp_path):
     session, page, _ = _session(tmp_path)
-    session.start()
-    with pytest.raises(SubmitBlocked):
-        session.submit()
+    state = session.start()
+    with pytest.raises(SubmitBlocked, match="required"):
+        session.submit(state["approval_token"])
     assert not any(kind == "click" for kind, _, _ in page.calls)    # nothing clicked
     session.cancel()
 
 
 def test_submit_clicks_only_after_explicit_call_and_tracks_submitted(tmp_path):
     session, page, seen = _session(tmp_path)
-    session.start()
+    state = session.start()
     session.edit("#why", "Because I build ML platforms.")
-    session.edit("#consent", "(completed in the browser)", mark_done=True)
+    state = session.edit("#consent", "(completed in the browser)", mark_done=True)
     assert not any(kind == "click" for kind, _, _ in page.calls)    # not yet
-    result = session.submit()
+    result = session.submit(state["approval_token"])
     assert result["result"]["status"] == "submitted"
     clicks = [sel for kind, sel, _ in page.calls if kind == "click"]
     assert len(clicks) == 1 and "submit" in clicks[0].lower()
     (rec,) = load_applications(tmp_path / "applications.json")
     assert rec.status == "submitted"
     assert seen["closed"] is True                          # browser torn down
+
+
+def test_changed_field_after_review_rejects_stale_approval(tmp_path):
+    session, page, _ = _session(tmp_path)
+    state = session.start()
+    session.edit("#why", "Because I build ML platforms.")
+    state = session.edit("#consent", "done", mark_done=True)
+    old_token = state["approval_token"]
+    latest = session.edit("#why", "A changed answer.")
+    with pytest.raises(SubmitBlocked, match="review state changed"):
+        session.submit(old_token)
+    assert latest["approval_token"] != old_token
+    assert not any(kind == "click" for kind, _, _ in page.calls)
+    session.cancel()
+
+
+def test_changed_job_invalidates_approval(tmp_path):
+    session, page, _ = _session(tmp_path)
+    state = session.start()
+    session.edit("#why", "Because I build ML platforms.")
+    state = session.edit("#consent", "done", mark_done=True)
+    session._record["id"] = "other-job"
+    with pytest.raises(SubmitBlocked, match="application changed"):
+        session.submit(state["approval_token"])
+    assert not any(kind == "click" for kind, _, _ in page.calls)
+    session.cancel()
+
+
+def test_form_dom_change_after_review_invalidates_approval(tmp_path):
+    session, page, _ = _session(tmp_path)
+    session.start()
+    session.edit("#why", "Because I build ML platforms.")
+    state = session.edit("#consent", "done", mark_done=True)
+    page.scan = [*_SCAN, {**_SCAN[0], "selector": "#new", "label": "New field"}]
+    with pytest.raises(SubmitBlocked, match="application changed"):
+        session.submit(state["approval_token"])
+    assert not any(kind == "click" for kind, _, _ in page.calls)
+    session.cancel()
 
 
 def test_cancel_marks_the_attempt_paused_and_closes_the_browser(tmp_path):
@@ -349,23 +405,41 @@ def test_apply_endpoints_run_the_full_gated_flow(tmp_path):
     assert any(u["tag"] == "[PAUSED: consent]" for u in state["unfilled"])
 
     # submit refused while required fields missing -> 409, nothing clicked
-    resp = c.post("/api/apply/submit", json={"session_id": sid})
+    resp = c.post("/api/apply/submit", json={"session_id": sid,
+                                             "approval_token": state["approval_token"]})
     assert resp.status_code == 409
     assert not any(k == "click" for k, _, _ in holder["page"].calls)
 
     c.post("/api/apply/edit", json={"session_id": sid, "selector": "#why",
                                     "value": "Because I build ML platforms."})
-    c.post("/api/apply/edit", json={"session_id": sid, "selector": "#consent",
-                                    "value": "(completed in the browser)",
-                                    "mark_done": True})
-    resp = c.post("/api/apply/submit", json={"session_id": sid})
+    final_state = c.post("/api/apply/edit", json={"session_id": sid, "selector": "#consent",
+                                                   "value": "(completed in the browser)",
+                                                   "mark_done": True}).json()
+    resp = c.post("/api/apply/submit", json={"session_id": sid,
+                                             "approval_token": final_state["approval_token"]})
     assert resp.status_code == 200
     assert resp.json()["result"]["status"] == "submitted"
     # session is gone afterwards
-    assert c.post("/api/apply/submit", json={"session_id": sid}).status_code == 404
+    assert c.post("/api/apply/submit", json={"session_id": sid,
+                                             "approval_token": "expired"}).status_code == 404
 
 
 def test_apply_start_404s_for_unknown_job(tmp_path):
     app, _ = _app(tmp_path)
     resp = TestClient(app).post("/api/apply/start", json={"job_id": "nope"})
     assert resp.status_code == 404
+
+
+def test_apply_open_rejects_unsafe_url_before_opening_browser(tmp_path):
+    import json
+
+    app, _ = _app(tmp_path)
+    search_path = tmp_path / "last_search.json"
+    data = json.loads(search_path.read_text())
+    data["jobs"]["j1"]["apply_url"] = "javascript:alert(1)"
+    search_path.write_text(json.dumps(data))
+    opened = []
+    app = create_app(data_dir=tmp_path, url_opener=opened.append)
+    response = TestClient(app).post("/api/apply/open", json={"job_id": "j1"})
+    assert response.status_code == 400
+    assert opened == []

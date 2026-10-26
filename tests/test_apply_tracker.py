@@ -53,11 +53,12 @@ def test_update_status_touches_only_that_attempt(tmp_path):
     assert first != second                          # attempt ids are distinct
 
 
-def test_missing_or_corrupt_log_reads_as_empty(tmp_path):
+def test_missing_log_is_empty_but_corrupt_log_is_reported(tmp_path):
     assert load_applications(tmp_path / "nope.json") == []
     bad = tmp_path / "bad.json"
     bad.write_text("{not json")
-    assert load_applications(bad) == []
+    with pytest.raises(ValueError, match="Cannot read JSON"):
+        load_applications(bad)
 
 
 def test_record_status_is_validated():

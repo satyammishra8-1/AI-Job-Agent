@@ -10,10 +10,11 @@ and must not match against the stale pre-typing list.
 from __future__ import annotations
 
 import pytest
+from pathlib import Path
 
 playwright = pytest.importorskip("playwright.sync_api")
 
-FILL_DIR = "/Users/aravindpranav/job-agent/extension/content"
+FILL_DIR = Path(__file__).parents[1] / "extension" / "content"
 
 FIXTURE = """
 <div id="wrap">
@@ -58,7 +59,7 @@ def test_type_to_search_widget_resolves_after_typing():
         page = browser.new_page()
         page.set_content(FIXTURE)
         for f in ("match", "fill"):
-            page.add_script_tag(path=f"{FILL_DIR}/{f}.js")
+            page.add_script_tag(path=str(FILL_DIR / f"{f}.js"))
         out = page.evaluate("""async () => {
           const r = await JA_fillCombobox(document.getElementById('school'),
                                           'University of North Texas');

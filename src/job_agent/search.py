@@ -20,7 +20,8 @@ from job_agent.seen_cache import SeenCache
 from job_agent.seniority import LEVEL_NAMES, seniority_rank
 from job_agent.sources import JobSource, build_source
 
-FRESH_WINDOW = timedelta(hours=24)
+# The product's default search window is 30 days (CLI, dashboard, and README).
+FRESH_WINDOW = timedelta(days=30)
 
 # A job is dropped on experience only when its JD requires at least this many
 # more years than the candidate has (so an "8+ years" role is dropped for a
@@ -175,7 +176,7 @@ def run(
     kept = [(j, lbl) for (j, lbl) in all_jobs if matches_keywords(j.title, profile.keywords)]
     after_keyword = len(kept)
 
-    # Stage 2: freshness (default 24h).
+    # Stage 2: freshness (default 30 days; caller-supplied windows are preserved).
     kept = [(j, lbl) for (j, lbl) in kept if is_fresh(j, now, seen_cache, fresh_window)]
     after_fresh = len(kept)
     seen_cache.save()

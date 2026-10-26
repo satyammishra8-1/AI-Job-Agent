@@ -191,7 +191,7 @@
   <div class="sec-sub" id="gen-at">Jobs found by your last search, best matches first.</div>
   <div class="toolbar">
     <button class="primary" id="btn-search">Find new jobs</button>
-    <label>posted in the last <input id="days" type="number" min="1" max="90" value="7"> days</label>
+    <label>posted in the last <input id="days" type="number" min="1" max="90" value="30"> days</label>
     <span style="flex:1"></span>
     <label>Status <select id="jf-status"><option value="">all</option></select></label>
     <label>Source <select id="jf-source"><option value="">all</option></select></label>
@@ -512,7 +512,7 @@ async function runSearch() {
   log.style.display = "block";
   log.textContent = "Searching the job boards and scoring each role against your profile…";
   try {
-    const data = await post("/api/search", {days: Number($("#days").value) || 7});
+    const data = await post("/api/search", {days: Number($("#days").value) || 30});
     log.textContent = data.output || "";
     log.classList.toggle("err", !data.ok);
     JOBS = data.jobs;
@@ -597,6 +597,7 @@ function planRow(f, valueHtml, actionsHtml) {
 }
 
 function renderSession(state) {
+  if (SESSION) SESSION.token = state.approval_token;
   const panel = $("#preview");
   panel.classList.remove("hidden");
   if (state.result) {   // submitted / cancelled — terminal state
@@ -822,7 +823,8 @@ document.addEventListener("click", (ev) => {
     sessionAction(() => sPost("/api/apply/edit", {selector: t.dataset.sdone,
       value: "(completed in the browser)", mark_done: true}));
   if (t.dataset.srescan) sessionAction(() => sPost("/api/apply/rescan", {}));
-  if (t.dataset.ssubmit) sessionAction(() => sPost("/api/apply/submit", {}));
+  if (t.dataset.ssubmit) sessionAction(() => sPost("/api/apply/submit",
+    {approval_token: SESSION.token}));
   if (t.dataset.scancel) sessionAction(() => sPost("/api/apply/cancel", {}));
   if (t.dataset.edit) {
     // the Edit/Notes button toggles the editor row nearest to the clicked row

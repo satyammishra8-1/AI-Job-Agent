@@ -50,7 +50,8 @@ RAW_FIELDS = [
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("JOB_AGENT_EXTENSION_ID", "a" * 32)
     (tmp_path / "career_facts.yaml").write_text(FACTS_YAML)
     (tmp_path / "answer_bank.yaml").write_text(BANK_YAML)
     return TestClient(create_app(data_dir=tmp_path))
@@ -293,7 +294,7 @@ def test_option_alias_matching_usa_to_united_states():
     """
     proc = subprocess.run(
         [node, "-e", script,
-         "/Users/aravindpranav/job-agent/extension/content/match.js"],
+         str(Path(__file__).parents[1] / "extension" / "content" / "match.js")],
         capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
@@ -362,7 +363,7 @@ def test_ping_reports_the_backend_is_up(client):
 EXT_ORIGIN = "chrome-extension://" + "a" * 32
 
 
-def test_cors_allows_a_chrome_extension_origin(client):
+def test_cors_allows_the_pinned_chrome_extension_origin(client):
     resp = _post_with_origin(client, EXT_ORIGIN)
     assert resp.headers.get("access-control-allow-origin") == EXT_ORIGIN
 
@@ -384,6 +385,16 @@ def test_cors_can_be_pinned_to_one_extension_id(tmp_path, monkeypatch):
         "chrome-extension://" + "b" * 32
     other = _post_with_origin(client, EXT_ORIGIN)   # a different extension
     assert "access-control-allow-origin" not in other.headers
+
+
+def test_extension_api_fails_closed_when_id_is_not_pinned(tmp_path, monkeypatch):
+    monkeypatch.delenv("JOB_AGENT_EXTENSION_ID", raising=False)
+    (tmp_path / "career_facts.yaml").write_text(FACTS_YAML)
+    (tmp_path / "answer_bank.yaml").write_text(BANK_YAML)
+    client = TestClient(create_app(data_dir=tmp_path))
+    response = _post_with_origin(client, EXT_ORIGIN)
+    assert response.status_code == 403
+    assert "access-control-allow-origin" not in response.headers
 
 
 def _post_with_origin(client, origin: str):

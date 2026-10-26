@@ -12,7 +12,6 @@ missing or corrupt log reads as empty — tracking must never break an apply run
 
 from __future__ import annotations
 
-import json
 import re
 import uuid
 from datetime import datetime, timezone
@@ -20,6 +19,7 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
+from job_agent.json_store import read_json, write_json_atomic
 
 #: Run statuses (written by run_apply): submitted — really sent; paused —
 #: awaiting the human (dry-run, skipped, mid-run); failed — the run crashed.
@@ -48,20 +48,19 @@ class ApplicationRecord(BaseModel):
 
 
 def load_applications(path: str | Path) -> list[ApplicationRecord]:
-    """Read the log; a missing, unreadable, or corrupt file is an empty log."""
+    """Read the log; a missing file is empty, corrupt data is an error."""
     path = Path(path)
-    if not path.exists():
-        return []
     try:
-        raw = json.loads(path.read_text())
+        raw = read_json(path, [])
+        if not isinstance(raw, list):
+            raise ValueError(f"Invalid application log in {path}: expected a JSON list")
         return [ApplicationRecord.model_validate(r) for r in raw]
-    except (OSError, json.JSONDecodeError, ValidationError):
-        return []
+    except ValidationError as exc:
+        raise ValueError(f"Invalid application record in {path}: {exc}") from exc
 
 
 def _write(path: Path, records: list[ApplicationRecord]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps([r.model_dump() for r in records], indent=2))
+    write_json_atomic(path, [r.model_dump() for r in records])
 
 
 def _find_job(records: list[ApplicationRecord], job_id: str,

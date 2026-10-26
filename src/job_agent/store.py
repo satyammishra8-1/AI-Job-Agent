@@ -6,11 +6,14 @@ Job plus its board token and score/verdict, keyed by job id.
 
 from __future__ import annotations
 
-import json
+import ipaddress
+import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from job_agent.models import ScoredJob
+from job_agent.json_store import read_json, write_json_atomic
 
 
 def save_search(scored: list[ScoredJob], boards: list[str], path: str | Path, *,
@@ -47,11 +50,10 @@ def save_search(scored: list[ScoredJob], boards: list[str], path: str | Path, *,
     }
     if sources_queried is not None:
         meta["sources_queried"] = sources_queried
-    path.write_text(json.dumps(
+    write_json_atomic(path,
         {"generated_at": datetime.now(timezone.utc).isoformat(),
          "meta": meta, "jobs": records},
-        indent=2,
-    ))
+    )
     return path
 
 
@@ -60,7 +62,9 @@ def load_job_record(path: str | Path, job_id: str) -> dict | None:
     path = Path(path)
     if not path.exists():
         return None
-    data = json.loads(path.read_text())
+    data = read_json(path, {})
+    if not isinstance(data, dict) or not isinstance(data.get("jobs", {}), dict):
+        raise ValueError(f"Invalid search data in {path}: expected an object with jobs")
     return data.get("jobs", {}).get(str(job_id))
 
 
@@ -69,4 +73,38 @@ def resolve_apply_url(record: dict) -> str | None:
     else its ``url``, VERBATIM — never a URL derived from the company, board, or
     a template. Query strings matter (SmartRecruiters' ``?oga=true`` routes to
     the per-job apply flow); any rewrite lands on the wrong page."""
-    return record.get("apply_url") or record.get("url") or None
+    candidate = record.get("apply_url") or record.get("url") or None
+    return validate_application_url(candidate) if candidate else None
+
+
+def validate_application_url(url: str) -> str:
+    """Allow public HTTP(S) URLs only; reject local and reserved destinations."""
+    if not isinstance(url, str) or not url or url != url.strip():
+        raise ValueError("Application URL is empty or malformed")
+    if "\\" in url or any(ord(char) < 0x20 or ord(char) == 0x7F for char in url):
+        raise ValueError("Application URL contains unsafe characters")
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+        port = parts.port
+    except ValueError as exc:
+        raise ValueError(f"Application URL is malformed: {exc}") from exc
+    if parts.scheme.lower() not in {"http", "https"} or not host:
+        raise ValueError("Application URL must use http or https and include a hostname")
+    if parts.username is not None or parts.password is not None:
+        raise ValueError("Application URL must not contain embedded credentials")
+    host = host.rstrip(".").lower()
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
+        raise ValueError("Application URL cannot target a local hostname")
+    if "%" in host or re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host):
+        # Browsers accept shorthand/hex IPv4 forms which ipaddress does not.
+        raise ValueError("Application URL cannot use an encoded or ambiguous IP hostname")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        raise ValueError("Application URL cannot target a private or reserved IP address")
+    if port is not None and not (1 <= port <= 65535):
+        raise ValueError("Application URL has an invalid port")
+    return url

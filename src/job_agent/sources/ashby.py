@@ -4,7 +4,7 @@ Endpoint (public, no auth):
     https://api.ashbyhq.com/posting-api/job-board/{board}?includeCompensation=true
 
 Real shape (observed): ``jobs`` list, each with ``id``, ``title``,
-``publishedAt`` (ISO UTC — clean for the 24h filter), ``location``, ``isRemote``,
+``publishedAt`` (ISO UTC — clean for the freshness filter), ``location``, ``isRemote``,
 ``address.postalAddress.addressCountry`` (e.g. "USA", "United States"),
 ``jobUrl``, ``applyUrl``, and ``descriptionPlain``.
 """

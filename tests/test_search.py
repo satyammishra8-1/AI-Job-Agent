@@ -137,7 +137,8 @@ def test_leaked_foreign_locations_are_dropped_end_to_end(location, expected):
 
 def test_is_fresh_uses_posted_at():
     assert is_fresh(make_job(posted_at=NOW - timedelta(hours=3)), NOW, SeenCache("/tmp/_a.json"))
-    assert not is_fresh(make_job(posted_at=NOW - timedelta(hours=30)), NOW, SeenCache("/tmp/_b.json"))
+    assert is_fresh(make_job(posted_at=NOW - timedelta(days=29)), NOW, SeenCache("/tmp/_b.json"))
+    assert not is_fresh(make_job(posted_at=NOW - timedelta(days=31)), NOW, SeenCache("/tmp/_c.json"))
 
 
 def test_recency_window_is_configurable():
@@ -152,8 +153,8 @@ def test_is_fresh_falls_back_to_seen_cache(tmp_path):
     job = make_job(id="42", posted_at=None, source="greenhouse")
     # First time we see a dateless job it's treated as fresh...
     assert is_fresh(job, NOW, cache) is True
-    # ...but if we first saw it two days ago, it's stale.
-    cache._first_seen["greenhouse:42"] = (NOW - timedelta(days=2)).isoformat()
+    # ...but if we first saw it 31 days ago, it's stale.
+    cache._first_seen["greenhouse:42"] = (NOW - timedelta(days=31)).isoformat()
     assert is_fresh(job, NOW, cache) is False
 
 
@@ -212,7 +213,7 @@ def test_run_pipeline_counts_and_dedup(tmp_path):
         make_job(id="3", title="Machine Learning Engineer", company="Gamma", location="London",
                  remote=False, country="GB", posted_at=NOW - timedelta(hours=1)),          # location drop
         make_job(id="4", title="Data Engineer", company="Delta", location="Remote",
-                 remote=True, country="US", posted_at=NOW - timedelta(hours=40)),          # freshness drop
+                 remote=True, country="US", posted_at=NOW - timedelta(days=40)),           # freshness drop
         make_job(id="5", title="Machine Learning Engineer", company="Beta", location="Remote",
                  remote=True, country="US", posted_at=NOW - timedelta(hours=1)),
         make_job(id="6", title="Machine Learning Engineer", company="Beta", location="Remote",

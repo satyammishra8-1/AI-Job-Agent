@@ -1,9 +1,9 @@
 """A tiny on-disk cache of when we first saw each job.
 
-Most boards expose a real post date, so the 24h filter uses that directly. But
+Most boards expose a real post date, so the freshness filter uses that directly. But
 some jobs (e.g. a Greenhouse posting with a null ``first_published``) have no
-usable date. For those, we approximate "posted in the last 24h" with "first
-observed in the last 24h": the first time we see a dateless job we record the
+usable date. For those, we approximate "posted within the selected window" with
+"first observed within that window": the first time we see a dateless job we record the
 timestamp; on later runs we compare against it.
 
 The cache is a small JSON file under the data dir (gitignored). It is the only
@@ -12,9 +12,9 @@ mutable-state component in the pipeline, so it's kept deliberately simple.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
+from job_agent.json_store import read_json, write_json_atomic
 
 
 class SeenCache:
@@ -26,12 +26,16 @@ class SeenCache:
         self._load()
 
     def _load(self) -> None:
-        if self.path.exists():
-            try:
-                self._first_seen = json.loads(self.path.read_text())
-            except (ValueError, OSError):
-                # A corrupt cache should never break a run — start fresh.
-                self._first_seen = {}
+        raw = read_json(self.path, {})
+        if not isinstance(raw, dict) or not all(
+                isinstance(k, str) and isinstance(v, str) for k, v in raw.items()):
+            raise ValueError(f"Invalid seen cache in {self.path}: expected string keys and values")
+        try:
+            for value in raw.values():
+                datetime.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(f"Invalid timestamp in seen cache {self.path}: {exc}") from exc
+        self._first_seen = raw
 
     @staticmethod
     def _key(source: str, job_id: str) -> str:
@@ -59,5 +63,4 @@ class SeenCache:
 
     def save(self) -> None:
         """Persist the cache, creating the data dir if needed."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(self._first_seen, indent=2, sort_keys=True))
+        write_json_atomic(self.path, self._first_seen)

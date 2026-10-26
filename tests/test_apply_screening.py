@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import job_agent.tailor as tailor_pkg
 from job_agent.apply.answer_bank import AnswerBank, Contact
 from job_agent.apply.fields import FieldType, FormField, Unfilled
@@ -419,3 +420,10 @@ def test_cache_round_trip_re_reviews_as_ai_draft(tmp_path):
     assert fill.value.startswith(GOOD)                    # pre-populated from cache
     assert calls == []                                    # no LLM call
     assert source_tag(fill.source) == "[AI-DRAFT]"        # still reviewed, never auto
+
+
+def test_corrupt_approved_answer_cache_is_reported_not_overwritten(tmp_path):
+    cache = tmp_path / "answers_cache.json"
+    cache.write_text("{broken")
+    with pytest.raises(ValueError, match="Cannot read JSON"):
+        _drafter([], cache_path=cache)

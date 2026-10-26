@@ -27,18 +27,20 @@ from pydantic import BaseModel, Field
 MAX_FIELDS = 300          # a real application form is well under this
 _TEXT_CAP = 2000          # labels/selectors from an untrusted page — cap them
 
-#: CORS for the extension. A pinned ID (set ``JOB_AGENT_EXTENSION_ID`` after
-#: loading unpacked) allows exactly that extension; otherwise any Chrome
-#: extension origin is admitted — web pages NEVER are, which is what keeps a
-#: malicious site from reading profile data off localhost.
-_EXTENSION_ORIGIN_REGEX = r"^chrome-extension://[a-p]{32}$"
+#: The extension ID must be pinned after loading it; access fails closed otherwise.
+
+
+def is_trusted_extension_origin(origin: str) -> bool:
+    """Whether an Origin belongs to the explicitly configured extension."""
+    ext_id = os.environ.get("JOB_AGENT_EXTENSION_ID", "").strip()
+    return bool(ext_id) and origin == f"chrome-extension://{ext_id}"
 
 
 def cors_config() -> dict:
     """Keyword arguments for ``CORSMiddleware`` — extension origins only."""
     ext_id = os.environ.get("JOB_AGENT_EXTENSION_ID", "").strip()
     scope = ({"allow_origins": [f"chrome-extension://{ext_id}"]} if ext_id
-             else {"allow_origin_regex": _EXTENSION_ORIGIN_REGEX})
+             else {"allow_origins": []})
     return {"allow_methods": ["GET", "POST"],
             "allow_headers": ["content-type"], **scope}
 
