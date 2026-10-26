@@ -107,10 +107,10 @@ sources/ (Greenhouse, Lever, Ashby, SmartRecruiters
           + cross-company: sr-search, Remotive, RemoteOK)
    │  each fetch() -> list[Job]   (coded against real API shapes, not guesses)
    ▼
-search.py   keyword ─▶ recency ─▶ location ─▶ seniority ─▶ dedup ─▶ experience
+  search.py   keyword ─▶ recency ─▶ location ─▶ seniority ─▶ dedup ─▶ verify ─▶ experience
    │            every stage's survivor count is reported (no silent truncation)
    ▼
-scoring.py  LLM fit score per surviving job  ─▶ ScoredJob {score, verdict, …}
+  scoring.py  LLM fit score per surviving job  ─▶ ScoredJob {score, verdict, …}
    │
    ▼
 cli.py      ranked rich table
@@ -118,7 +118,8 @@ cli.py      ranked rich table
 
 **Normalization.** Every board becomes one immutable `Job`
 (`models.py`): `id, title, company, location, url, apply_url, source,
-posted_at` (tz-aware), `remote`, `country`, `description`. Each source was
+posted_at` (tz-aware), `remote`, `country`, `description`, plus a typed
+verification result added after enrichment. Each source was
 written against a real captured response — see `tests/fixtures/`.
 
 **Keyword pre-filter first.** Company boards carry hundreds of unrelated roles.
@@ -279,11 +280,20 @@ tracked state joined in, and drives the same CLI code paths:
   scan (as a relative time), total jobs, sources queried, and how many jobs
   were first seen in that scan; rows first seen in the current scan carry a
   **NEW** badge, and a "newest first" sort option orders by first-seen time
-  ("best match" stays the default). Every number comes from persisted scan
+  ("verified, then match" stays the default). Every number comes from persisted scan
   data — anything unavailable is omitted, never guessed. Baseline rule: on the
   first scan after the seen cache is empty there is no earlier scan to be "new
   since", so no row is badged and the new-count is omitted rather than showing
   a misleading number.
+- **Genuine-job verification.** Per-company Greenhouse, Lever, Ashby, and
+  SmartRecruiters board responses are evidence that a posting exists on the
+  configured employer board. Cross-company feeds remain `NEEDS_REVIEW` until a
+  canonical employer posting is confirmed. Deterministic checks flag unsafe or
+  shortened application links, explicit upfront-payment requests, early
+  sensitive-data requests, and suspicious placement claims. Verification
+  status ranks ahead of fit score; suspicious roles remain visible but require
+  an explicit human acknowledgment before an apply page can open. The checker
+  does not follow links or send job text to Gemini.
 - **Application tracker** (`apply/tracker.py`, gitignored
   `data/applications.json`): per-job status (saved / ready to apply / applied /
   under review / assessment / interview / offer / rejected / withdrawn), notes,
@@ -322,7 +332,8 @@ src/job_agent/
   sources/           one module per ATS + JobSource base
                      (greenhouse, lever, ashby, smartrecruiters
                       + cross-company: sr_search, remotive, remoteok)
-  search.py          fetch → keyword → recency → location → seniority → dedup → experience
+  search.py          fetch → keyword → recency → location → seniority → dedup → verify → experience
+  verification.py    canonical ATS evidence + deterministic risk signals
   geo.py             infer a country from free-text location
   seniority.py       title → seniority level (for the max_seniority filter)
   experience.py      required years-of-experience parsed from a JD

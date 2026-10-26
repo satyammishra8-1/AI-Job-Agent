@@ -20,6 +20,39 @@ SourceName = Literal["greenhouse", "lever", "ashby", "smartrecruiters", "demo",
 # The scorer's verdict. "unscored" is a distinct state used when the LLM output
 # could not be parsed even after one retry (see scoring.py).
 Verdict = Literal["strong", "possible", "skip", "unscored"]
+VerificationStatus = Literal["verified", "needs_review", "suspicious"]
+
+
+class VerificationSignal(BaseModel):
+    """One evidence-based verification or risk observation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    severity: Literal["info", "review", "risk"]
+    message: str
+
+
+class VerificationEvidence(BaseModel):
+    """URLs and domains the deterministic verifier actually inspected."""
+
+    model_config = ConfigDict(frozen=True)
+
+    canonical_url: str | None = None
+    source_url: str | None = None
+    employer_domain: str | None = None
+    application_domain: str | None = None
+
+
+class VerificationResult(BaseModel):
+    """Conservative status plus the evidence supporting it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    status: VerificationStatus
+    signals: tuple[VerificationSignal, ...] = ()
+    evidence: VerificationEvidence = Field(default_factory=VerificationEvidence)
+    reason: str
 
 
 class Job(BaseModel):
@@ -41,6 +74,7 @@ class Job(BaseModel):
     # Best-effort country marker for the location rule; None when unknown.
     country: str | None = None
     description: str = ""
+    verification: VerificationResult | None = None
 
     def dedup_key(self) -> str:
         """Canonical identity used to drop duplicates across boards/re-runs."""
@@ -61,7 +95,11 @@ class ScoredJob(BaseModel):
     missing_requirements: tuple[str, ...] = ()
 
     @property
-    def sort_key(self) -> tuple[int, int]:
-        """Rank strong > possible > skip > unscored, then by score (desc)."""
+    def sort_key(self) -> tuple[int, int, int]:
+        """Prefer verified opportunities, then preserve fit verdict/score order."""
+        verification_rank = {
+            "verified": 2, "needs_review": 1, "suspicious": 0,
+        }.get(self.job.verification.status if self.job.verification else None, 1)
         verdict_rank = {"strong": 3, "possible": 2, "skip": 1, "unscored": 0}
-        return (verdict_rank[self.verdict], self.score if self.score is not None else -1)
+        return (verification_rank, verdict_rank[self.verdict],
+                self.score if self.score is not None else -1)

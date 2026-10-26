@@ -117,6 +117,32 @@ def test_fill_report_missing_is_null(env):
     assert client.get("/api/apply/fill-report/j1").json() == {"report": None}
 
 
+def test_suspicious_job_requires_explicit_review_before_opening(env, tmp_path):
+    import json
+
+    _, _ = env
+    search_path = tmp_path / "last_search.json"
+    data = json.loads(search_path.read_text())
+    data["jobs"]["j1"]["verification"] = {
+        "status": "suspicious", "reason": "Application link hides its destination.",
+        "signals": [], "evidence": {},
+    }
+    search_path.write_text(json.dumps(data))
+    opened = []
+    client = TestClient(create_app(data_dir=tmp_path,
+                                   url_opener=lambda url: opened.append(url) or "chrome"))
+
+    blocked = client.post("/api/apply/open", json={"job_id": "j1"})
+    assert blocked.status_code == 409
+    assert "Suspicious" in blocked.json()["detail"]
+    assert opened == []
+
+    reviewed = client.post("/api/apply/open", json={
+        "job_id": "j1", "verification_reviewed": True})
+    assert reviewed.status_code == 200
+    assert opened == [JOB["apply_url"]]
+
+
 # --- the Chrome opener ---------------------------------------------------------
 
 def test_open_in_chrome_prefers_explicit_chrome():

@@ -53,6 +53,8 @@ class ApplyConfig:
     drafter: Drafter | None = None
     answer_cache: Path | None = None  # gitignored approved-answer cache
     company: str = ""                 # cache key namespace
+    verification_status: str | None = None
+    verification_reviewed: bool = False
     # Application-tracking metadata (see tracker.py). The log is gitignored.
     job_id: str = ""
     job_title: str = ""
@@ -83,6 +85,9 @@ def run_apply(cfg: ApplyConfig, io: PromptIO | None = None) -> SubmitResult:
     Every attempt is logged to ``cfg.applications_log`` up front and resolved
     to submitted / paused / failed when the run completes (or crashes).
     """
+    if cfg.verification_status == "suspicious" and not cfg.verification_reviewed:
+        raise ValueError(
+            "suspicious job requires explicit human review before an application can start")
     attempt_id = record_attempt(cfg.applications_log, ApplicationRecord(
         company=cfg.company or cfg.job_label, title=cfg.job_title,
         job_id=cfg.job_id, date=datetime.now(timezone.utc).isoformat(),

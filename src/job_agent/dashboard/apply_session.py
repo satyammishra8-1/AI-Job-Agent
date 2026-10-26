@@ -79,8 +79,16 @@ class ApplySession:
 
     def __init__(self, *, record: dict, bank, contact, resume_path: Path | None,
                  drafter, tracker_path: Path, out_dir: Path,
-                 browser_factory=None, submit_selector: str = _SUBMIT_SELECTOR):
+                 browser_factory=None, submit_selector: str = _SUBMIT_SELECTOR,
+                 verification_reviewed: bool = False):
+        verification = record.get("verification") or {}
+        if (isinstance(verification, dict)
+                and verification.get("status") == "suspicious"
+                and not verification_reviewed):
+            raise ValueError(
+                "suspicious job requires explicit human review before opening an application")
         self._record = record
+        self._verification_reviewed = verification_reviewed
         self._bank, self._contact = bank, contact
         self._resume_path, self._drafter = resume_path, drafter
         self._tracker_path, self._out_dir = Path(tracker_path), Path(out_dir)
@@ -144,6 +152,12 @@ class ApplySession:
     # -- steps (worker thread only) -----------------------------------------------
 
     def _start(self, stack: ExitStack) -> dict:
+        verification = self._record.get("verification") or {}
+        if (isinstance(verification, dict)
+                and verification.get("status") == "suspicious"
+                and not self._verification_reviewed):
+            raise ValueError(
+                "suspicious job requires explicit human review before opening an application")
         self._attempt_id = record_attempt(self._tracker_path, ApplicationRecord(
             company=self._record.get("company", "Unknown"),
             title=self._record.get("title", ""),

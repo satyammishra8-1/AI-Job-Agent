@@ -430,6 +430,23 @@ def test_apply_start_404s_for_unknown_job(tmp_path):
     assert resp.status_code == 404
 
 
+def test_suspicious_job_cannot_start_apply_session_without_review(tmp_path):
+    import json
+
+    app, holder = _app(tmp_path)
+    path = tmp_path / "last_search.json"
+    data = json.loads(path.read_text())
+    data["jobs"]["j1"]["verification"] = {
+        "status": "suspicious", "reason": "Upfront payment request.",
+        "signals": [], "evidence": {},
+    }
+    path.write_text(json.dumps(data))
+    response = TestClient(app).post("/api/apply/start", json={"job_id": "j1"})
+    assert response.status_code == 409
+    assert "Upfront payment" in response.json()["detail"]
+    assert "page" not in holder
+
+
 def test_apply_open_rejects_unsafe_url_before_opening_browser(tmp_path):
     import json
 

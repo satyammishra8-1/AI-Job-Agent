@@ -21,6 +21,7 @@ from job_agent.store import resolve_apply_url
 from job_agent.json_store import read_json
 
 _VERDICT_RANK = {"strong": 3, "possible": 2, "skip": 1, "unscored": 0}
+_VERIFICATION_RANK = {"verified": 2, "needs_review": 1, "suspicious": 0}
 
 
 # --- section 1: application pipeline -------------------------------------------------
@@ -146,11 +147,21 @@ def jobs_view(last_search_path: str | Path,
         except (FileNotFoundError, ValueError):
             pass
     for job in jobs:
+        if not isinstance(job.get("verification"), dict):
+            job["verification"] = {
+                "status": "needs_review",
+                "signals": [],
+                "evidence": {"canonical_url": None, "source_url": job.get("url"),
+                             "employer_domain": None, "application_domain": None},
+                "reason": "Verification was not recorded for this saved search; review the posting and employer site.",
+            }
         job["tailored_resume_ready"] = (
             _tailored_resume_path(job, facts=facts, out_dir=out_dir) is not None
             if facts is not None and out_dir is not None else None
         )
-    jobs.sort(key=lambda j: (_VERDICT_RANK.get(j.get("verdict"), 0),
+    jobs.sort(key=lambda j: (_VERIFICATION_RANK.get(
+                                 (j.get("verification") or {}).get("status"), 1),
+                             _VERDICT_RANK.get(j.get("verdict"), 0),
                              j.get("score") if j.get("score") is not None else -1),
               reverse=True)
     tracked: dict[str, dict] = {}
@@ -368,11 +379,12 @@ def run_apply_preview(job_id: str, *, data_dir: Path, facts_path: Path,
 
 
 def start_apply_session(job_id: str, *, data_dir: Path, facts_path: Path,
-                        out_dir: Path):
+                        out_dir: Path, verification_reviewed: bool = False):
     """Build a live, human-gated apply session (visible browser) for one job."""
     from job_agent.dashboard.apply_session import ApplySession
 
     inputs = _assemble_apply_inputs(job_id, data_dir=data_dir,
                                     facts_path=facts_path, out_dir=out_dir)
     return ApplySession(tracker_path=data_dir / "applications.json",
-                        out_dir=data_dir / "apply", **inputs)
+                        out_dir=data_dir / "apply",
+                        verification_reviewed=verification_reviewed, **inputs)

@@ -29,6 +29,10 @@ class JobRequest(BaseModel):
     job_id: str = Field(min_length=1)
 
 
+class ApplyJobRequest(JobRequest):
+    verification_reviewed: bool = False
+
+
 class SessionRequest(BaseModel):
     session_id: str = Field(min_length=1)
 
@@ -84,9 +88,15 @@ def create_app(*, data_dir: Path = Path("data"),
         job_id, data_dir=data_dir, facts_path=facts_path, out_dir=out_dir))
     previewer = previewer or (lambda job_id: service.run_apply_preview(
         job_id, data_dir=data_dir, facts_path=facts_path, out_dir=out_dir))
-    apply_session_factory = apply_session_factory or (
-        lambda job_id: service.start_apply_session(
-            job_id, data_dir=data_dir, facts_path=facts_path, out_dir=out_dir))
+    if apply_session_factory is None:
+        apply_session_factory = (
+            lambda job_id, *, verification_reviewed=False: service.start_apply_session(
+                job_id, data_dir=data_dir, facts_path=facts_path, out_dir=out_dir,
+                verification_reviewed=verification_reviewed))
+    else:
+        injected_factory = apply_session_factory
+        apply_session_factory = (
+            lambda job_id, *, verification_reviewed=False: injected_factory(job_id))
     url_opener = url_opener or service.open_in_chrome
 
     app = FastAPI(title="job-agent dashboard", docs_url=None, redoc_url=None)
@@ -129,6 +139,16 @@ def create_app(*, data_dir: Path = Path("data"),
         if record is None:
             raise HTTPException(404, f"job id {job_id!r} not in the last search")
         return record
+
+    def _require_suspicious_review(record: dict, acknowledged: bool) -> None:
+        verification = record.get("verification") or {}
+        if (isinstance(verification, dict)
+                and verification.get("status") == "suspicious" and not acknowledged):
+            reason = verification.get("reason") or "Risk signals were detected."
+            raise HTTPException(
+                409,
+                f"Suspicious job requires explicit review before opening an application: {reason}",
+            )
 
     @app.get("/api/applications")
     def applications() -> dict:
@@ -186,11 +206,12 @@ def create_app(*, data_dir: Path = Path("data"),
     # --- apply in the user's REAL browser (extension does the filling) -----
 
     @app.post("/api/apply/open")
-    def apply_open(req: JobRequest) -> dict:
+    def apply_open(req: ApplyJobRequest) -> dict:
         """Open the job's stored apply URL in the user's own browser and queue
         a fill task for the extension. No Playwright, no filling, no
         submission here — the human drives everything from their browser."""
         record = _require_job(req.job_id)
+        _require_suspicious_review(record, req.verification_reviewed)
         try:
             url = resolve_apply_url(record)
         except ValueError as exc:
@@ -223,11 +244,13 @@ def create_app(*, data_dir: Path = Path("data"),
         return session
 
     @app.post("/api/apply/start")
-    def apply_start(req: JobRequest) -> dict:
+    def apply_start(req: ApplyJobRequest) -> dict:
         from uuid import uuid4
 
-        _require_job(req.job_id)
-        session = apply_session_factory(req.job_id)
+        record = _require_job(req.job_id)
+        _require_suspicious_review(record, req.verification_reviewed)
+        session = apply_session_factory(
+            req.job_id, verification_reviewed=req.verification_reviewed)
         session_id = uuid4().hex
         sessions[session_id] = session
         try:

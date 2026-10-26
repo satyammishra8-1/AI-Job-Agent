@@ -111,6 +111,32 @@ def test_jobs_endpoint_serves_the_last_search_ranked(client):
     assert data["jobs"][0]["tailored_resume_ready"] is None
 
 
+def test_jobs_endpoint_exposes_verification_evidence_and_ranks_by_status(tmp_path):
+    path = tmp_path / "last_search.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"jobs": {
+        "s": {"id": "s", "title": "Role", "company": "A", "location": "India",
+              "url": "https://bit.ly/apply", "source": "remoteok", "score": 99,
+              "verdict": "strong", "verification": {
+                  "status": "suspicious", "reason": "Hidden destination.",
+                  "signals": [], "evidence": {}}},
+        "r": {"id": "r", "title": "Role", "company": "B", "location": "India",
+              "url": "https://remoteok.com/jobs/2", "source": "remoteok", "score": 80,
+              "verdict": "possible", "verification": {
+                  "status": "needs_review", "reason": "Canonical posting not confirmed.",
+                  "signals": [], "evidence": {}}},
+        "v": {"id": "v", "title": "Role", "company": "Acme", "location": "India",
+              "url": "https://acme.com/jobs/3", "source": "greenhouse", "score": 60,
+              "verdict": "possible", "verification": {
+                  "status": "verified", "reason": "Present on configured ATS board.",
+                  "signals": [], "evidence": {"canonical_url": "https://acme.com/jobs/3"}}},
+    }}))
+    jobs = TestClient(create_app(data_dir=tmp_path)).get("/api/jobs").json()["jobs"]
+    assert [job["verification"]["status"] for job in jobs] == [
+        "verified", "needs_review", "suspicious"]
+    assert jobs[0]["verification"]["evidence"]["canonical_url"] == "https://acme.com/jobs/3"
+
+
 def test_search_endpoint_runs_the_pipeline_and_returns_fresh_jobs(tmp_path):
     _seed_last_search(tmp_path / "last_search.json")
 

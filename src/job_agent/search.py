@@ -19,6 +19,7 @@ from job_agent.models import Job
 from job_agent.seen_cache import SeenCache
 from job_agent.seniority import LEVEL_NAMES, seniority_rank
 from job_agent.sources import JobSource, build_source
+from job_agent.verification import verify_job
 
 # The product's default search window is 30 days (CLI, dashboard, and README).
 FRESH_WINDOW = timedelta(days=30)
@@ -228,6 +229,14 @@ def run(
         except Exception as exc:  # enrichment is best-effort
             warnings.append(f"{lbl}: enrich failed for {job.id} ({exc})")
             enriched_pairs.append((job, board))
+
+    # Verification uses the normalized source provenance and enriched posting
+    # text, but remains deterministic and treats that text as untrusted data.
+    # It runs before the remaining eligibility filter and Gemini matching.
+    enriched_pairs = [
+        (job.model_copy(update={"verification": verify_job(job)}), board)
+        for job, board in enriched_pairs
+    ]
 
     # Stage 6: experience gap (needs the full JD, hence after enrichment).
     enriched_pairs = [(j, b) for (j, b) in enriched_pairs if passes_experience(j, profile)]

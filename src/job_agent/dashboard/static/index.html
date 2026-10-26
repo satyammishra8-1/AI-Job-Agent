@@ -229,6 +229,17 @@
   .job-signal { padding:4px 8px; border:1px solid var(--border); border-radius:7px;
     color:var(--muted); font-size:10.5px; background:#fafbfe; }
   .job-signal b { color:#34445e; font-weight:700; }
+  .verification-card { margin-top:11px; padding:10px 12px; border:1px solid var(--border);
+    border-radius:9px; background:#fafbfe; font-size:11.5px; }
+  .verification-title { font-weight:750; }
+  .verification-card p { margin:4px 0 0; color:var(--muted); }
+  .verification-card a { display:inline-block; margin-top:5px; font-size:10.5px; }
+  .verification-verified { border-color:#b8e5d3; background:#f1fbf6; }
+  .verification-verified .verification-title { color:#08764f; }
+  .verification-needs_review { border-color:#f2dfad; background:#fffaf0; }
+  .verification-needs_review .verification-title { color:#96600c; }
+  .verification-suspicious { border-color:#f0c8c8; background:#fff6f6; }
+  .verification-suspicious .verification-title { color:#a52828; }
   .job-meta span { display:inline-flex; align-items:center; gap:5px; } .job-meta .meta-dot { width:4px; height:4px; background:#a7b2c2; border-radius:50%; }
   .match-copy { color:var(--muted); font-size:11.5px; margin-top:13px; } .match-copy b { color:#34445e; font-weight:700; }
   .skill-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
@@ -296,14 +307,14 @@
 
 <section id="sec-jobs">
   <div class="section-heading"><div><h2>Recommended opportunities</h2>
-    <div class="sec-sub" id="gen-at">Recommended opportunities, including lower-scoring roles, ordered by match.</div></div></div>
+    <div class="sec-sub" id="gen-at">Verification status first, then fit score. Lower-scoring and review-needed roles remain visible.</div></div></div>
   <div class="toolbar">
     <span style="flex:1"></span>
     <label>Status <select id="jf-status"><option value="">all</option></select></label>
     <label>Source <select id="jf-source"><option value="">all</option></select></label>
     <label>Min score <input id="jf-score" type="number" min="0" max="100" placeholder="0"></label>
     <label>Sort <select id="jf-sort">
-      <option value="score">best match</option><option value="newest">newest first</option><option value="company">company</option>
+      <option value="score">verified, then match</option><option value="newest">newest first</option><option value="company">company</option>
     </select></label>
     <label><input type="checkbox" id="jf-hide-applied" checked> Hide jobs I've applied to</label>
   </div>
@@ -370,6 +381,7 @@ const LABELS = {
   unscored: "Not scored",
 };
 const label = (v) => LABELS[v] || v;
+const _VERIFICATION_RANK = {verified: 2, needs_review: 1, suspicious: 0};
 
 let APPS = [];   // /api/applications records
 let JOBS = [];   // /api/jobs jobs
@@ -571,7 +583,9 @@ function renderJobs() {
     ? a.company.localeCompare(b.company)
     : sort === "newest"
       ? (b.posted_at || b.first_seen || "").localeCompare(a.posted_at || a.first_seen || "")
-      : (b.score ?? -1) - (a.score ?? -1));
+      : ((_VERIFICATION_RANK[b.verification?.status] ?? 1) -
+         (_VERIFICATION_RANK[a.verification?.status] ?? 1)) ||
+        ((b.score ?? -1) - (a.score ?? -1)));
   const hiddenNote = hiddenN
     ? '<div class="empty" style="padding:10px 16px">' + hiddenN +
       ' job(s) you already applied to are hidden ? untick ?Hide applied? to show them.</div>' : "";
@@ -607,9 +621,20 @@ function renderJobs() {
         missing.map((x) => '<span class="skill-chip">' + esc(x) + '</span>').join("") + '</div></div>' : "";
     const resumeStatus = j.tailored_resume_ready === true ? "Tailored PDF ready"
       : j.tailored_resume_ready === false ? "Resume not tailored" : "Resume status unavailable";
+    const verification = j.verification || {
+      status: "needs_review", reason: "Verification was not recorded for this saved search; review the posting and employer site.",
+      evidence: {}, signals: []};
+    const verificationStatus = ["verified", "needs_review", "suspicious"].includes(verification.status)
+      ? verification.status : "needs_review";
+    const verificationLabel = verificationStatus === "verified" ? "✓ Verified employer posting"
+      : verificationStatus === "suspicious" ? "⚠ Suspicious" : "⚠ Needs review";
+    const verificationUrl = verification.evidence?.canonical_url
+      ? '<a href="' + esc(verification.evidence.canonical_url) + '" target="_blank" rel="noreferrer">Open employer posting</a>' : "";
+    const verificationHtml = '<div class="verification-card verification-' + verificationStatus + '">' +
+      '<div class="verification-title">Genuine</div><p><b>' + verificationLabel + '</b> · ' +
+      esc(verification.reason || "Review the source and employer details.") + '</p>' + verificationUrl + '</div>';
     const signals = '<div class="job-signals">' +
       '<span class="job-signal"><b>Eligibility</b> Not assessed</span>' +
-      '<span class="job-signal"><b>Verification</b> Not independently verified</span>' +
       '<span class="job-signal"><b>ATS</b> Readiness not assessed</span>' +
       '<span class="job-signal"><b>Resume</b> ' + esc(resumeStatus) + '</span></div>';
     const nextAction = t?.next_action ||
@@ -629,7 +654,7 @@ function renderJobs() {
       '<span><i class="meta-dot"></i>' + esc(j.source || "Source unavailable") + '</span>' +
       (posted ? '<span><i class="meta-dot"></i>' + esc(posted) + '</span>' : '') + '</div>' +
       '<div class="match-copy"><b>' + esc(strength) + '</b>' + pill(verdict) +
-      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml + signals +
+      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml + verificationHtml + signals +
       '<div class="app-next"><b>Next action</b> · ' + esc(nextAction) + '</div>' +
       '<div class="job-actions">' + view +
       '<button class="primary" data-apply="' + esc(j.id) + '" title="Open this job in your own browser; you review and submit">Apply</button>' +
@@ -906,9 +931,11 @@ function pollFillReport(id, j, openedVia) {
 async function openApply(id, out) {
   const j = JOBS.find((x) => String(x.id) === String(id));
   if (!j) return;
+  const reviewed = confirmSuspicious(j);
+  if (reviewed === null) return;
   out.textContent = "Opening in Chrome…"; out.classList.remove("err");
   try {
-    const r = await post("/api/apply/open", {job_id: String(id)});
+    const r = await post("/api/apply/open", {job_id: String(id), verification_reviewed: reviewed});
     out.textContent = "";
     renderOpenPanel(j, r.opened_via, null);
     pollFillReport(String(id), j, r.opened_via);
@@ -917,8 +944,24 @@ async function openApply(id, out) {
   }
 }
 
+function confirmSuspicious(j) {
+  if (j.verification?.status !== "suspicious") return false;
+  const reason = j.verification.reason || "Risk signals were detected.";
+  const domain = j.verification.evidence?.application_domain || "unavailable";
+  const signals = (j.verification.signals || []).filter((s) => s.severity === "risk")
+    .map((s) => "• " + s.message).join("\n");
+  return window.confirm("This opportunity is marked SUSPICIOUS. Review the employer posting and destination before continuing.\n\n" +
+    "Application domain: " + domain + "\n" + reason +
+    (signals ? "\n\nSignals:\n" + signals : "") + "\n\nContinue to the application page?")
+    ? true : null;
+}
+
 async function startApply(id, out) {
   if (SESSION) { out.textContent = "finish or cancel the application that's already open first"; return; }
+  const j = JOBS.find((x) => String(x.id) === String(id));
+  if (!j) return;
+  const reviewed = confirmSuspicious(j);
+  if (reviewed === null) return;
   out.textContent = "Opening a browser window…"; out.classList.remove("err");
   const panel = $("#preview");
   panel.classList.remove("hidden");
@@ -926,7 +969,7 @@ async function startApply(id, out) {
     window on your screen and filling in the safe answers…</div>`;
   panel.scrollIntoView({behavior: "smooth", block: "nearest"});
   try {
-    const state = await post("/api/apply/start", {job_id: id});
+    const state = await post("/api/apply/start", {job_id: id, verification_reviewed: reviewed});
     SESSION = {id: state.session_id};
     out.textContent = "";
     renderSession(state);

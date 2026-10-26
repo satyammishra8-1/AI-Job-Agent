@@ -424,6 +424,26 @@ def cmd_apply(console: Console, args: argparse.Namespace) -> int:
             console.print(f"[red]Job id {args.job!r} not found in data/last_search.json.[/red] "
                           "Run a search first.")
             return 1
+        verification = record.get("verification")
+        if not isinstance(verification, dict):
+            verification = {}
+        verification_reviewed = False
+        if verification.get("status") == "suspicious":
+            console.print("[bold red]SUSPICIOUS opportunity â€” human review required[/bold red]")
+            evidence = verification.get("evidence") or {}
+            if not isinstance(evidence, dict):
+                evidence = {}
+            console.print(verification.get("reason") or "Risk signals were detected.", markup=False)
+            if evidence.get("application_domain"):
+                console.print(f"Application domain: {evidence['application_domain']}", markup=False)
+            if evidence.get("canonical_url"):
+                console.print(f"Employer posting: {evidence['canonical_url']}", markup=False)
+            console.print("Review the employer and application destination yourself. "
+                          "No application page will open until you acknowledge this risk.")
+            if io.read("Type REVIEWED to continue, anything else to stop: ").strip() != "REVIEWED":
+                console.print("[yellow]Stopped before opening an application.[/yellow]")
+                return 1
+            verification_reviewed = True
         apply_url = resolve_apply_url(record)
         if not apply_url:
             console.print("[red]That job record has no apply/URL to open.[/red]")
@@ -472,6 +492,8 @@ def cmd_apply(console: Console, args: argparse.Namespace) -> int:
             job_title=record.get("title", ""),
             source=record.get("source", ""),
             applications_log=settings.data_dir / "applications.json",
+            verification_status=verification.get("status"),
+            verification_reviewed=verification_reviewed,
         )
         result = run_apply(cfg, io=io)
         _print_apply_result(console, result)
