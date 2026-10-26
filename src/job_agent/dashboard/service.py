@@ -151,6 +151,10 @@ def jobs_view(last_search_path: str | Path,
         if out_dir is not None else {}
     if not isinstance(tailoring_records, dict):
         tailoring_records = {}
+    prep_records = read_json(Path(tracker_path).parent / "application_preparations.json", {}) \
+        if tracker_path is not None else {}
+    if not isinstance(prep_records, dict):
+        prep_records = {}
     for job in jobs:
         job.setdefault("eligibility", {"status": "review", "reasons": [
             "Eligibility was not assessed for this saved result."]})
@@ -215,6 +219,11 @@ def jobs_view(last_search_path: str | Path,
         j["already_applied"] = is_already_applied(
             markers, job_id=str(j.get("id")), company=j.get("company", ""),
             title=j.get("title", ""))
+        prep = prep_records.get(str(j.get("id")), {})
+        j["preparation_status"] = (prep.get("status") if isinstance(prep, dict)
+                                    and prep.get("status") != "NOT_READY" else
+                                    "RESUME_READY" if j.get("resume_status") == "READY"
+                                    else "NOT_READY")
     return {"generated_at": data.get("generated_at"),
             "meta": data.get("meta"), "jobs": jobs}
 

@@ -334,6 +334,17 @@ tracked state joined in, and drives the same CLI code paths:
   application are hidden from search results by default, in both the CLI and
   the UI. A one-click **Mark applied / Undo** works whether or not autofill
   ever ran.
+- **Application preparation.** The workflow is Find â†’ Verify â†’ Match â†’ ATS Tailor
+  â†’ Validate Resume â†’ Prepare Application â†’ Approve â†’ Apply â†’ Track.
+  A verified and eligible role with a validated resume can receive concise,
+  job-specific answer, recruiter-message, and cover-note drafts. Drafts use
+  only career facts and the existing answer bank; missing evidence is marked
+  `NEEDS_REVIEW`. The dashboard displays the answer, evidence, missing details,
+  and job-specific reason for review. A user must edit/confirm the content and
+  explicitly approve the prepared state before either dashboard application
+  route opens. Editing content, changing job details, or changing the resume
+  invalidates that approval. Preparation data is stored locally in
+  `data/application_preparations.json`.
 - **Apply** opens the job's stored apply URL in **your own Chrome** (real
   profile, extensions loaded — `open -a "Google Chrome"`, falling back to your
   default browser) and queues a fill task for the extension; the extension's

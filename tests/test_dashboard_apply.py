@@ -381,11 +381,20 @@ def test_cancel_marks_the_attempt_paused_and_closes_the_browser(tmp_path):
 # --- endpoints -------------------------------------------------------------------------
 
 def _app(tmp_path, page=None):
+    from job_agent.apply.preparation import fingerprint, _context_fingerprint
     import json
     (tmp_path / "last_search.json").write_text(json.dumps(
         {"generated_at": "2026-07-09T00:00:00+00:00",
          "jobs": {"j1": {**RECORD, "board": "plaid", "score": 80,
+                         "verification": {"status": "verified"},
+                         "eligibility": {"status": "eligible"},
                          "verdict": "strong", "reasons": []}}}))
+    prep = {"job_id":"j1", "status":"READY_TO_APPLY", "reviewed":True,
+            "answers":[], "context_fingerprint":_context_fingerprint(
+                {**RECORD,"verification":{"status":"verified"},
+                 "eligibility":{"status":"eligible"}}, None)}
+    prep["approved_fingerprint"] = fingerprint(prep)
+    (tmp_path / "application_preparations.json").write_text(json.dumps({"j1":prep}))
     holder = {}
 
     def session_factory(job_id):
@@ -422,6 +431,35 @@ def test_apply_endpoints_run_the_full_gated_flow(tmp_path):
     # session is gone afterwards
     assert c.post("/api/apply/submit", json={"session_id": sid,
                                              "approval_token": "expired"}).status_code == 404
+
+
+def test_needs_review_preparation_cannot_open_application(tmp_path):
+    import json
+    app, holder = _app(tmp_path)
+    path = tmp_path / "application_preparations.json"
+    data = json.loads(path.read_text())
+    data["j1"]["status"] = "NEEDS_REVIEW"
+    path.write_text(json.dumps(data))
+    response = TestClient(app).post("/api/apply/start", json={"job_id":"j1"})
+    assert response.status_code == 409
+    assert "preparation must be reviewed" in response.json()["detail"]
+    assert "page" not in holder
+
+
+def test_preparation_change_after_form_review_blocks_submit(tmp_path):
+    import json
+    app, holder = _app(tmp_path)
+    client = TestClient(app)
+    state = client.post("/api/apply/start", json={"job_id":"j1"}).json()
+    path = tmp_path / "application_preparations.json"
+    data = json.loads(path.read_text())
+    data["j1"]["status"] = "NEEDS_REVIEW"
+    path.write_text(json.dumps(data))
+    response = client.post("/api/apply/submit", json={
+        "session_id":state["session_id"], "approval_token":state["approval_token"]})
+    assert response.status_code == 409
+    assert not any(k == "click" for k, _, _ in holder["page"].calls)
+    client.post("/api/apply/cancel", json={"session_id":state["session_id"]})
 
 
 def test_apply_start_404s_for_unknown_job(tmp_path):

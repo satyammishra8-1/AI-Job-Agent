@@ -37,6 +37,16 @@ class ApplyJobRequest(JobRequest):
     verification_reviewed: bool = False
 
 
+class PreparationEditRequest(JobRequest):
+    answers: dict[str, str] = Field(default_factory=dict)
+    recruiter_message: str | None = None
+    cover_note: str | None = None
+
+
+class PreparationApprovalRequest(JobRequest):
+    reviewed: bool = True
+
+
 class SessionRequest(BaseModel):
     session_id: str = Field(min_length=1)
 
@@ -137,6 +147,8 @@ def create_app(*, data_dir: Path = Path("data"),
                                                pending_task=pending_task,
                                                fill_reports=fill_reports))
     sessions: dict[str, object] = {}   # live apply sessions, one browser each
+    session_jobs: dict[str, str] = {}
+    session_preparations: dict[str, str] = {}
 
     def _require_job(job_id: str) -> dict:
         record = load_job_record(data_dir / "last_search.json", job_id)
@@ -153,6 +165,17 @@ def create_app(*, data_dir: Path = Path("data"),
                 409,
                 f"Suspicious job requires explicit review before opening an application: {reason}",
             )
+
+    preparation_path = data_dir / "application_preparations.json"
+
+    def _require_prepared_approval(job_id: str) -> str:
+        from job_agent.apply.preparation import get_preparation, is_approved
+        prep = get_preparation(preparation_path, job_id)
+        record = _require_job(job_id)
+        resume = service.resume_pdf_path(record, facts_path=facts_path, out_dir=out_dir)
+        if not is_approved(prep, job=record, resume_path=resume):
+            raise HTTPException(409, "Application preparation must be reviewed and approved in the dashboard first")
+        return prep["approved_fingerprint"]
 
     @app.get("/api/applications")
     def applications() -> dict:
@@ -235,6 +258,63 @@ def create_app(*, data_dir: Path = Path("data"),
         _require_job(req.job_id)
         return tailorer(req.job_id)
 
+    @app.get("/api/preparation/{job_id}")
+    def application_preparation(job_id: str) -> dict:
+        from job_agent.apply.preparation import get_preparation
+        _require_job(job_id)
+        return get_preparation(preparation_path, job_id)
+
+    @app.post("/api/preparation/generate")
+    def prepare_application(req: JobRequest) -> dict:
+        from job_agent.apply.answer_bank import load_answer_bank
+        from job_agent.apply.preparation import generate_preparation
+        from job_agent.config import load_settings
+        from job_agent.tailor.career_facts import load_career_facts
+        record = _require_job(req.job_id)
+        view = service.jobs_view(data_dir / "last_search.json", facts_path=facts_path,
+                                 out_dir=out_dir)
+        job = next((j for j in view["jobs"] if str(j.get("id")) == req.job_id), record)
+        try:
+            facts = load_career_facts(facts_path)
+            bank = load_answer_bank(data_dir / "answer_bank.yaml")
+            resume = service.resume_pdf_path(record, facts_path=facts_path, out_dir=out_dir)
+            return generate_preparation(path=preparation_path, job=job, facts=facts,
+                bank=bank, resume_status=job.get("resume_status", "NOT_PREPARED"),
+                settings=load_settings(), jd=record.get("description") or "",
+                resume_path=resume)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.put("/api/preparation/edit")
+    def edit_preparation(req: PreparationEditRequest) -> dict:
+        from job_agent.apply.answer_bank import load_answer_bank
+        from job_agent.apply.preparation import update_preparation
+        from job_agent.tailor.career_facts import load_career_facts
+        updates = {"answers": req.answers}
+        if req.recruiter_message is not None: updates["recruiter_message"] = req.recruiter_message
+        if req.cover_note is not None: updates["cover_note"] = req.cover_note
+        try:
+            record = _require_job(req.job_id)
+            facts = load_career_facts(facts_path)
+            bank = load_answer_bank(data_dir / "answer_bank.yaml")
+            return update_preparation(preparation_path, req.job_id, updates,
+                                      facts=facts, company=record.get("company", ""),
+                                      bank=bank)
+        except KeyError as exc:
+            raise HTTPException(404, "Application preparation not found") from exc
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.post("/api/preparation/approve")
+    def approve_application(req: PreparationApprovalRequest) -> dict:
+        from job_agent.apply.preparation import approve_preparation
+        try:
+            return approve_preparation(preparation_path, req.job_id)
+        except KeyError as exc:
+            raise HTTPException(404, "Application preparation not found") from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
     @app.post("/api/apply/preview")
     def apply_preview(req: JobRequest) -> dict:
         _require_job(req.job_id)
@@ -258,6 +338,7 @@ def create_app(*, data_dir: Path = Path("data"),
             raise HTTPException(400, str(exc)) from exc
         if not url:
             raise HTTPException(404, "this job record has no apply URL")
+        preparation_fingerprint = _require_prepared_approval(req.job_id)
         from datetime import datetime, timezone
 
         pending_task["task"] = {
@@ -289,17 +370,24 @@ def create_app(*, data_dir: Path = Path("data"),
 
         record = _require_job(req.job_id)
         _require_suspicious_review(record, req.verification_reviewed)
+        preparation_fingerprint = _require_prepared_approval(req.job_id)
         session = apply_session_factory(
             req.job_id, verification_reviewed=req.verification_reviewed)
         session_id = uuid4().hex
         sessions[session_id] = session
+        session_jobs[session_id] = req.job_id
+        session_preparations[session_id] = preparation_fingerprint
         try:
             state = session.start()
         except ValueError as exc:
             sessions.pop(session_id, None)
+            session_jobs.pop(session_id, None)
+            session_preparations.pop(session_id, None)
             raise HTTPException(400, str(exc)) from exc
         except Exception:
             sessions.pop(session_id, None)
+            session_jobs.pop(session_id, None)
+            session_preparations.pop(session_id, None)
             raise
         return {"session_id": session_id, **state}
 
@@ -319,10 +407,15 @@ def create_app(*, data_dir: Path = Path("data"),
 
         session = _session(req.session_id)
         try:
+            current_fingerprint = _require_prepared_approval(session_jobs[req.session_id])
+            if current_fingerprint != session_preparations.get(req.session_id):
+                raise HTTPException(409, "Prepared application changed after this form session opened; cancel and review it again")
             result = session.submit(req.approval_token)  # tied to the reviewed state
         except SubmitBlocked as exc:
             raise HTTPException(409, str(exc)) from exc
         sessions.pop(req.session_id, None)
+        session_jobs.pop(req.session_id, None)
+        session_preparations.pop(req.session_id, None)
         return result
 
     @app.post("/api/apply/cancel")
@@ -330,6 +423,8 @@ def create_app(*, data_dir: Path = Path("data"),
         session = sessions.pop(req.session_id, None)
         if session is None:
             raise HTTPException(404, "no such apply session (it may have finished)")
+        session_jobs.pop(req.session_id, None)
+        session_preparations.pop(req.session_id, None)
         return session.cancel()
 
     @app.get("/")

@@ -675,9 +675,12 @@ function renderJobs() {
       '<span class="job-signal"><b>Decision</b> ' + esc(j.decision || "review") + '</span>' +
       '<span class="job-signal" title="Deterministic curated-keyword coverage, not a commercial ATS score; matched=1, partial=0.5, missing=0"><b>ATS Readiness</b> ' + atsText + '</span>' +
       '<span class="job-signal"><b>Resume</b> ' + esc(resumeStatus) +
-      (j.tailoring_reason ? ' · ' + esc(j.tailoring_reason) : '') + '</span></div>';
+      (j.tailoring_reason ? ' · ' + esc(j.tailoring_reason) : '') + '</span>' +
+      '<span class="job-signal"><b>Application prep</b> ' + esc(j.preparation_status || "NOT_READY") + '</span></div>';
     const nextAction = t?.next_action ||
-      (j.tailored_resume_ready ? "Review your tailored resume before applying"
+      (j.preparation_status === "READY_TO_APPLY" ? "Application approved; continue to apply"
+        : j.preparation_status === "NEEDS_REVIEW" || j.preparation_status === "ANSWERS_READY" ? "Review application answers and approve"
+        : j.tailored_resume_ready ? "Review your resume, then prepare application answers"
         : "Review hard requirements, then tailor your resume");
     const appliedPill = j.already_applied ? ' <span class="pill p-applied">already applied</span>' : "";
     const newPill = j.first_seen_this_scan === true ? ' <span class="pill p-new">NEW</span>' : "";
@@ -701,6 +704,8 @@ function renderJobs() {
       '<button data-tailor="' + esc(j.id) + '">' +
         (j.resume_status === "READY" ? "Review resume" :
          j.resume_status === "NEEDS_REVIEW" ? "Resume needs review" : "Prepare resume") + '</button>' +
+      '<button data-prep="' + esc(j.id) + '">' +
+        (j.preparation_status === "READY_TO_APPLY" ? "Review application" : "Prepare application") + '</button>' +
       '<button class="ghost" data-resume="' + esc(j.id) + '" data-title="' + esc(j.company + " ? " + j.title) + '">Resume</button>' +
       '<button class="ghost" data-edit="' + esc(j.id) + '" title="Add notes or follow-up">Notes</button>' +
       '<span class="inline-out" data-out="' + esc(j.id) + '"></span></div>' +
@@ -797,6 +802,39 @@ function showResume(id, title) {
   $("#resume-frame").src = `/api/resume/${encodeURIComponent(id)}`;
   $("#resume-panel").classList.remove("hidden");
   $("#resume-panel").scrollIntoView({behavior: "smooth", block: "nearest"});
+}
+
+async function renderPreparation(id, prep) {
+  const panel = $("#preview"); panel.classList.remove("hidden");
+  const j = JOBS.find((x) => String(x.id) === String(id)) || {};
+  const answerRows = (prep.answers || []).map((a) => `<label class="plan-row"><span class="f">${esc(a.question)}<br><small>${esc(a.status)}</small></span><span class="v"><textarea data-prep-answer="${esc(a.key)}" style="width:100%;min-height:72px">${esc(a.answer || "")}</textarea><small>${esc(a.reasoning || "")}${a.missing_evidence?.length ? " Missing: " + esc(a.missing_evidence.join("; ")) : ""}<br>Evidence: ${esc((a.evidence || []).join("; ") || "No evidence listed")}</small></span></label>`).join("");
+  const issues = (prep.content_issues || []).map(esc).join("; ");
+  const msgEvidence = (prep.recruiter_message_evidence || []).join("; ") || "No specific profile evidence listed";
+  const coverEvidence = (prep.cover_note_evidence || []).join("; ") || "No specific profile evidence listed";
+  panel.innerHTML = `<div class="head"><b>${esc(j.company || "")} — ${esc(j.title || "")}</b><span class="meta">Application preparation · ${esc(prep.status)}</span><button class="ghost close" data-openclose="1">Close</button></div><div class="body"><div class="subhead">Resume</div><p>Status: ${esc(prep.resume_status || "NOT_READY")}</p>${issues ? '<p class="err">Truthfulness checks flagged: ' + issues + '</p>' : ""}<div class="subhead">Answers</div>${answerRows}<label class="plan-row"><span class="f">Recruiter / application message</span><span><textarea data-prep-message="1">${esc(prep.recruiter_message || "")}</textarea><small>Evidence: ${esc(msgEvidence)}</small></span></label><label class="plan-row"><span class="f">Short cover note</span><span><textarea data-prep-cover="1">${esc(prep.cover_note || "")}</textarea><small>Evidence: ${esc(coverEvidence)}</small></span></label><div class="gate">Review and edit every answer before marking the exact prepared state ready.<div style="margin-top:10px"><button data-prep-save="${esc(id)}">Save review</button><button class="primary" data-prep-approve="${esc(id)}">Approve prepared application</button>${prep.status === "READY_TO_APPLY" ? '<button data-apply="' + esc(id) + '">Continue to application</button>' : ""}</div></div></div>`;
+  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+async function openPreparation(id) {
+  const panel = $("#preview"); panel.classList.remove("hidden");
+  panel.innerHTML = '<div class="body">Preparing answers from your verified profile…</div>';
+  try {
+    let prep = await api("/api/preparation/" + encodeURIComponent(id));
+    if (prep.status === "NOT_READY") prep = await post("/api/preparation/generate", {job_id:String(id)});
+    await renderPreparation(id, prep);
+  } catch (e) { panel.innerHTML = `<div class="body err">${esc(e.message)}</div>`; }
+}
+
+async function savePreparation(id, approve) {
+  const panel = $("#preview");
+  const answers = Object.fromEntries([...panel.querySelectorAll("[data-prep-answer]")].map((e) => [e.dataset.prepAnswer, e.value]));
+  const recruiter = panel.querySelector("[data-prep-message]")?.value || "";
+  const cover = panel.querySelector("[data-prep-cover]")?.value || "";
+  try {
+    await put("/api/preparation/edit", {job_id:String(id),answers,recruiter_message:recruiter,cover_note:cover});
+    const prep = approve ? await post("/api/preparation/approve", {job_id:String(id)}) : await api("/api/preparation/" + encodeURIComponent(id));
+    await renderPreparation(id, prep); await loadJobs();
+  } catch (e) { alertBar(e.message); }
 }
 function closePanel(id) { $("#" + id).classList.add("hidden"); }
 
@@ -989,6 +1027,7 @@ function pollFillReport(id, j, openedVia) {
 async function openApply(id, out) {
   const j = JOBS.find((x) => String(x.id) === String(id));
   if (!j) return;
+  if (j.preparation_status !== "READY_TO_APPLY") { await openPreparation(id); return; }
   const reviewed = confirmSuspicious(j);
   if (reviewed === null) return;
   out.textContent = "Opening in Chrome…"; out.classList.remove("err");
@@ -1057,6 +1096,9 @@ document.addEventListener("click", (ev) => {
   const out = (id) => document.querySelector(`[data-out="${id}"]`);
   const dummyOut = {textContent: "", classList: {add() {}, remove() {}}};
   if (t.dataset.tailor) runTailor(t.dataset.tailor, out(t.dataset.tailor));
+  if (t.dataset.prep) openPreparation(t.dataset.prep);
+  if (t.dataset.prepSave) savePreparation(t.dataset.prepSave, false);
+  if (t.dataset.prepApprove) savePreparation(t.dataset.prepApprove, true);
   if (t.dataset.findJobs) $("#btn-search").click();
   if (t.dataset.apply) openApply(t.dataset.apply, out(t.dataset.apply) || dummyOut);
   if (t.dataset.mark) toggleApplied(t.dataset.mark, out(t.dataset.mark));

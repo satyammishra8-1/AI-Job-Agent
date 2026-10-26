@@ -28,6 +28,8 @@ JOB = {
     "url": "https://acme.com/careers/ml",
     "apply_url": "https://boards.greenhouse.io/embed/job_app?for=acme&token=1",
     "description": "Build ML systems with Python.",
+    "verification": {"status": "verified"},
+    "eligibility": {"status": "eligible"},
 }
 
 
@@ -37,6 +39,11 @@ def env(tmp_path):
     (tmp_path / "answer_bank.yaml").write_text("authorized_us: true\n")
     (tmp_path / "last_search.json").write_text(json.dumps(
         {"generated_at": "2026-07-21T00:00:00+00:00", "jobs": {"j1": JOB}}))
+    from job_agent.apply.preparation import fingerprint, _context_fingerprint
+    prep = {"job_id":"j1", "status":"READY_TO_APPLY", "reviewed":True,
+            "answers":[], "context_fingerprint":_context_fingerprint(JOB, None)}
+    prep["approved_fingerprint"] = fingerprint(prep)
+    (tmp_path / "application_preparations.json").write_text(json.dumps({"j1":prep}))
     opened = []
     app = create_app(data_dir=tmp_path,
                      url_opener=lambda url: opened.append(url) or "chrome")
