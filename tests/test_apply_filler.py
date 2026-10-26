@@ -77,6 +77,29 @@ def test_work_authorization_maps_to_select_options():
     assert _value(plan, "#spon") == "No"      # requires_sponsorship False
 
 
+def test_india_authorization_requires_explicit_country_fact():
+    india_bank = AnswerBank.model_validate({
+        "authorized_countries": ["India"], "requires_sponsorship": None,
+    })
+    fields = (
+        _f("#india", FieldType.SELECT, "Are you authorized to work in India?", options=["Yes", "No"]),
+        _f("#remote", FieldType.SELECT, "Can you work remotely from India?", options=["Yes", "No"]),
+        _f("#sponsor", FieldType.SELECT, "Will you require sponsorship?", options=["Yes", "No"]),
+    )
+    plan = build_fill_plan(fields, india_bank, CONTACT, None)
+    assert _value(plan, "#india") == "Yes"
+    assert {u.field.selector for u in plan.unfilled} == {"#remote", "#sponsor"}
+
+
+def test_missing_authorization_information_is_left_for_human_review():
+    empty_bank = AnswerBank.model_validate({})
+    plan = build_fill_plan((
+        _f("#auth", FieldType.SELECT, "Are you legally authorized to work in India?", options=["Yes", "No"]),
+    ), empty_bank, CONTACT, None)
+    assert plan.planned == ()
+    assert plan.unfilled[0].field.selector == "#auth"
+
+
 def test_salary_notice_start_experience_map():
     plan = _plan_for([
         _f("#salary", FieldType.TEXT, "Salary expectation"),
@@ -96,6 +119,18 @@ def test_work_mode_matches_select_option():
            options=["Remote", "Hybrid", "Onsite"]),
     ])
     assert _value(plan, "#mode") == "Remote"
+
+
+def test_work_mode_prefers_country_eligible_remote_option():
+    bank = AnswerBank.model_validate({
+        "country": "India", "work_mode": "remote",
+        "authorized_countries": ["India"],
+    })
+    plan = build_fill_plan((
+        _f("#mode", FieldType.SELECT, "Preferred work arrangement",
+           options=["Remote — US only", "Remote — India", "Hybrid"]),
+    ), bank, CONTACT, None)
+    assert _value(plan, "#mode") == "Remote — India"
 
 
 def test_resume_file_field_uploads_tailored_pdf():

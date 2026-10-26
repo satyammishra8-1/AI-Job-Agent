@@ -36,8 +36,10 @@ class SourceRef(BaseModel):
 
 
 class LocationRule(BaseModel):
-    remote_ok: bool = True
-    allowed_countries: list[str] = Field(default_factory=lambda: ["US"])
+    # Unknown-country remote roles need explicit user opt-in; explicit India
+    # and worldwide remote locations are handled by geo/passes_location.
+    remote_ok: bool = False
+    allowed_countries: list[str] = Field(default_factory=lambda: ["India"])
 
     model_config = {"extra": "forbid"}
 

@@ -57,20 +57,18 @@ class EeoAnswers(BaseModel):
 class AnswerBank(BaseModel):
     """Apply-specific answers, minus contact (merged from career facts).
 
-    Only work-authorization is required; the rest are optional so the bank is
-    usable while partially filled. Unknown answers stay empty and are surfaced,
+    Work-authorization facts are optional; unknown answers stay empty and are surfaced,
     never guessed.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    # --- work authorization (REQUIRED — must be explicit, never guessed) -----
-    authorized_us: bool = Field(
-        description="Are you legally authorized to work in the United States?"
-    )
-    requires_sponsorship: bool = Field(
-        description="Will you now or in the future require visa sponsorship?"
-    )
+    # --- work authorization (only explicit facts are used) ------------------
+    # Prefer country-specific facts. The US field remains for existing banks;
+    # missing facts intentionally pause form filling instead of being inferred.
+    authorized_countries: list[str] = Field(default_factory=list)
+    authorized_us: bool | None = None
+    requires_sponsorship: bool | None = None
 
     # --- compensation --------------------------------------------------------
     salary_expectation: str = ""

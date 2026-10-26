@@ -79,19 +79,22 @@ _US_COUNTRY_SPELLINGS = ("united states of america", "united states", "usa",
                          "u.s.a.", "u.s.", "america")
 
 
-def _pick_location_option(options: tuple[str, ...], want: str) -> str | None:
-    """Pick exactly ONE work-mode/location option, never a non-US one.
+def _pick_location_option(options: tuple[str, ...], want: str,
+                          preferred_country: str | None = None) -> str | None:
+    """Pick exactly ONE work-mode/location option for the user's country.
 
     From ["Remote Canada", "Remote US", "Hybrid"] with want="remote": candidates
     are both remotes; "Remote Canada" is discarded (infer_country -> Canada),
     "Remote US" wins (infer_country -> US). A generic "Remote" (no country) is
-    fine when it's the only candidate; several ambiguous candidates -> None
-    (pause) rather than guess.
+    fine when it's the only candidate; several ambiguous candidates -> None.
     """
     cands = [o for o in options if want.lower() in o.lower()]
-    cands = [o for o in cands if infer_country(o) in (None, "US")]  # never non-US
+    cands = [o for o in cands if infer_country(o) in (None, preferred_country or "US")]
     if not cands:
         return None
+    country_marked = [o for o in cands if infer_country(o) == preferred_country]
+    if preferred_country and country_marked:
+        return country_marked[0]
     us_marked = [o for o in cands if infer_country(o) == "US"]
     if us_marked:
         return us_marked[0]
@@ -274,9 +277,18 @@ def _text_value(f: FormField, bank: AnswerBank, contact: Contact) -> tuple[str, 
 
     # work authorization (booleans -> option) -----------------------------
     if "sponsor" in hay:
+        if bank.requires_sponsorship is None:
+            return None
         return _yes_no(f.options, bank.requires_sponsorship), "answer_bank.requires_sponsorship"
     if "authoriz" in hay or ("legally" in hay and "work" in hay) or has("eligible", "work"):
-        return _yes_no(f.options, bank.authorized_us), "answer_bank.authorized_us"
+        asked_country = infer_country(hay)
+        if asked_country is None:
+            return None
+        if any(infer_country(c) == asked_country for c in bank.authorized_countries):
+            return _yes_no(f.options, True), "answer_bank.authorized_countries"
+        if asked_country == "US" and bank.authorized_us is not None:
+            return _yes_no(f.options, bank.authorized_us), "answer_bank.authorized_us"
+        return None
 
     # compensation / availability / experience ----------------------------
     if "salary" in hay or "compensation" in hay or has("expected", "pay"):
@@ -311,7 +323,8 @@ def _text_value(f: FormField, bank: AnswerBank, contact: Contact) -> tuple[str, 
             # multiple (and non-US) options got selected. Pause instead.
             return None
         if f.options:
-            picked = _pick_location_option(f.options, bank.work_mode)
+            picked = _pick_location_option(f.options, bank.work_mode,
+                                           infer_country(bank.country) if bank.country else None)
             return (picked, "answer_bank.work_mode") if picked else None
         return bank.work_mode, "answer_bank.work_mode"
 

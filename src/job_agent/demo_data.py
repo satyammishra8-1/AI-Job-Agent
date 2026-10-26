@@ -22,15 +22,15 @@ def demo_jobs(now: datetime | None = None) -> list[Job]:
     return [
         Job(
             id="demo-1",
-            title="Senior Data Engineer",
+            title="Software Engineering Intern",
             company="Northwind Analytics",
-            location="Remote (US)",
+            location="Bengaluru, India",
             url="https://example.com/jobs/demo-1",
             apply_url="https://example.com/jobs/demo-1/apply",
             source="demo",
             posted_at=hours_ago(3),
-            remote=True,
-            country="US",
+            remote=False,
+            country="India",
             description=(
                 "Build and own batch and streaming data pipelines on AWS "
                 "(Glue, EMR, Redshift). Strong Python and SQL; dbt and Airflow "
@@ -39,15 +39,15 @@ def demo_jobs(now: datetime | None = None) -> list[Job]:
         ),
         Job(
             id="demo-2",
-            title="Machine Learning Engineer, LLM Platform",
+            title="Graduate Software Engineer",
             company="Cobalt AI",
-            location="New York, NY (Hybrid)",
+            location="Bangalore, India (Hybrid)",
             url="https://example.com/jobs/demo-2",
             apply_url="https://example.com/jobs/demo-2/apply",
             source="demo",
             posted_at=hours_ago(12),
             remote=False,
-            country="US",
+            country="India",
             description=(
                 "Design retrieval-augmented generation systems and fine-tuning "
                 "pipelines. Python, PyTorch, and experience deploying LLMs to "
@@ -56,15 +56,15 @@ def demo_jobs(now: datetime | None = None) -> list[Job]:
         ),
         Job(
             id="demo-3",
-            title="Data Scientist, Growth",
+            title="AI/ML Intern",
             company="Meridian Labs",
-            location="Austin, TX",
+            location="Remote — India",
             url="https://example.com/jobs/demo-3",
             apply_url="https://example.com/jobs/demo-3/apply",
             source="demo",
             posted_at=hours_ago(20),
-            remote=False,
-            country="US",
+            remote=True,
+            country="India",
             description=(
                 "Run experiments and build predictive models for user growth. "
                 "SQL, Python, and A/B testing. Some data engineering expected to "
@@ -75,13 +75,13 @@ def demo_jobs(now: datetime | None = None) -> list[Job]:
             id="demo-4",
             title="Staff Frontend Engineer",
             company="Northwind Analytics",
-            location="Remote (US)",
+            location="Remote — worldwide",
             url="https://example.com/jobs/demo-4",
             apply_url="https://example.com/jobs/demo-4/apply",
             source="demo",
             posted_at=hours_ago(6),
             remote=True,
-            country="US",
+            country=None,
             description=(
                 "Own the React/TypeScript web app. Not a data role — included to "
                 "show the keyword pre-filter removing off-target titles."
@@ -100,20 +100,20 @@ def demo_jobs(now: datetime | None = None) -> list[Job]:
             country="GB",
             description=(
                 "Great title match, wrong location — onsite in the UK. Included "
-                "to show the location rule dropping non-US onsite roles."
+                "to show the location rule dropping non-India onsite roles."
             ),
         ),
         Job(
             id="demo-6",
             title="Senior Data Engineer",
             company="Stale Corp",
-            location="Remote (US)",
+            location="Remote — India",
             url="https://example.com/jobs/demo-6",
             apply_url="https://example.com/jobs/demo-6/apply",
             source="demo",
             posted_at=now - timedelta(days=40),  # older than default 30d — dropped
             remote=True,
-            country="US",
+            country="India",
             description="Matches keywords and location, but posted 40h ago.",
         ),
     ]
@@ -136,14 +136,13 @@ class DemoSource(JobSource):
 def demo_profile() -> SearchProfile:
     """A self-contained profile for demo mode (no YAML file needed)."""
     return SearchProfile(
-        keywords=["data engineer", "data scientist", "machine learning",
-                  "ml engineer", "ai engineer", "gen ai"],
-        location=LocationRule(remote_ok=True, allowed_countries=["US"]),
+        keywords=["software engineer", "software engineering intern", "sde intern",
+                  "web development intern", "machine learning", "ai engineer", "gen ai"],
+        location=LocationRule(),
         sources=[SourceRef(ats="demo", board="demo")],
         candidate_summary=(
-            "Data / ML engineer targeting Data Engineer, Data Scientist, ML and "
-            "Gen AI Engineer roles. Python, SQL, cloud data platforms, LLM "
-            "pipelines. Open to remote (US) or onsite/hybrid in the USA."
+            "Seeking internship, graduate and entry-level software engineering, "
+            "web development and AI/ML roles in Bengaluru or remote within India."
         ),
     )
 
@@ -159,14 +158,14 @@ def score_demo(jobs: list[Job], profile: SearchProfile) -> list[ScoredJob]:
         text = f"{job.title} {job.description}".lower()
         hits = sum(1 for kw in profile.keywords if kw.lower() in text)
         title_hit = any(kw.lower() in job.title.lower() for kw in profile.keywords)
-        us = job.remote or (job.country or "").upper() in {"US", "USA"}
-        score = min(100, 40 + hits * 12 + (15 if title_hit else 0) + (10 if us else 0))
+        india_fit = (job.country or "").lower() == "india" or "worldwide" in job.location.lower()
+        score = min(100, 40 + hits * 12 + (15 if title_hit else 0) + (10 if india_fit else 0))
         verdict = "strong" if score >= 75 else "possible" if score >= 55 else "skip"
         reasons = []
         if title_hit:
             reasons.append("Title matches a target role")
-        if us:
-            reasons.append("Location fits (remote or US)")
+        if india_fit:
+            reasons.append("Location fits (India or worldwide remote)")
         reasons.append(f"{hits} keyword(s) matched in the posting")
         missing = [] if job.description else ["No description available to assess depth"]
         scored.append(ScoredJob(job=job, score=score, verdict=verdict,

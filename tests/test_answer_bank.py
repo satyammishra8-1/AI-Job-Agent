@@ -1,4 +1,4 @@
-"""Answer-bank validation: required work-auth, decline-to-state, contact merge."""
+"""Answer-bank validation: optional grounded work-auth, declines, contact merge."""
 
 from __future__ import annotations
 
@@ -37,17 +37,17 @@ def test_minimal_bank_needs_only_work_authorization():
 
 
 @pytest.mark.parametrize("missing", ["authorized_us", "requires_sponsorship"])
-def test_missing_work_authorization_field_is_rejected(missing):
+def test_missing_work_authorization_field_remains_unknown(missing):
     payload = {k: v for k, v in _MINIMAL.items() if k != missing}
-    with pytest.raises(Exception) as exc:  # pydantic ValidationError
-        AnswerBank.model_validate(payload)
-    assert missing in str(exc.value)
+    bank = AnswerBank.model_validate(payload)
+    assert getattr(bank, missing) is None
 
 
-def test_work_authorization_must_be_explicit_not_guessed():
-    # No defaults on either field — they cannot be silently assumed.
-    assert AnswerBank.model_fields["authorized_us"].is_required()
-    assert AnswerBank.model_fields["requires_sponsorship"].is_required()
+def test_work_authorization_defaults_to_unknown_not_guessed():
+    bank = AnswerBank.model_validate({})
+    assert bank.authorized_us is None
+    assert bank.authorized_countries == []
+    assert bank.requires_sponsorship is None
 
 
 def test_eeo_defaults_to_decline_to_state():
@@ -154,8 +154,9 @@ def test_resolve_contact_falls_back_to_facts_links():
 
 def test_example_template_loads_and_validates():
     bank = load_answer_bank(EXAMPLE)
-    assert bank.authorized_us is True
-    assert bank.requires_sponsorship is False
+    assert bank.authorized_countries == []
+    assert bank.authorized_us is None
+    assert bank.requires_sponsorship is None
     assert bank.work_mode == "remote"
     assert bank.eeo is not None
     assert "why this company" in bank.prepared_answers

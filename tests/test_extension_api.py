@@ -259,6 +259,7 @@ def test_option_alias_matching_usa_to_united_states():
         }
       };
       t("USA", ["Canada", "United States", "Mexico"], "United States");
+      t("India", ["United States", "Republic of India", "Canada"], "Republic of India");
       t("United States", ["USA", "Canada"], "USA");
       t("US", ["United States of America", "Uzbekistan"], "United States of America");
       t("Bachelor's", ["Master's Degree", "Bachelor's Degree", "PhD"], "Bachelor's Degree");

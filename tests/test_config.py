@@ -30,6 +30,13 @@ def test_seniority_and_experience_default_to_off():
     assert prof.experience_years is None
 
 
+def test_location_defaults_are_india_first_and_conservative_for_unknown_remote():
+    from job_agent.config import LocationRule
+    rule = LocationRule()
+    assert rule.allowed_countries == ["India"]
+    assert rule.remote_ok is False
+
+
 def test_max_seniority_accepts_known_level_case_insensitively():
     assert _profile(max_seniority="Senior").max_seniority == "senior"
     assert _profile(max_seniority="staff").max_seniority == "staff"

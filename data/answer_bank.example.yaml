@@ -10,33 +10,34 @@
 # adds apply-specific links and answers.
 # ---------------------------------------------------------------------------
 
-# --- Work authorization (REQUIRED — no defaults; must be answered explicitly) --
-# These two must be present, or the bank fails to load. We never guess a
-# work-authorization answer to a real employer.
-authorized_us: true          # Legally authorized to work in the US?
-requires_sponsorship: false  # Do you (now or later) require visa sponsorship?
+# --- Work authorization ------------------------------------------------------
+# Add only facts that are true for you. Missing authorization/sponsorship facts
+# are left unanswered for human review; do not infer from nationality/location.
+authorized_countries: []     # e.g. [India] if you have confirmed authorization
+# authorized_us: null        # Legacy US-specific field, optional
+# requires_sponsorship: null # Optional explicit yes/no
 
 # --- Compensation ------------------------------------------------------------
-salary_expectation: "$150,000 - $170,000"
+salary_expectation: ""
 
 # --- Location / mobility -----------------------------------------------------
 work_mode: remote            # one of: remote | hybrid | onsite
 willing_to_relocate: false
-location_preference: "Anywhere (US), remote preferred"
+location_preference: "Bengaluru or remote within India"
 
 # Structured location — used verbatim for City / State / ZIP / Country form
 # fields (the location_preference sentence above is never put in those).
-city: "Santa Clara"
-state: "California"
-zip: "95050"
-country: "USA"
+city: "Bengaluru"
+state: "Karnataka"
+zip: ""
+country: "India"
 
 # --- Availability ------------------------------------------------------------
 notice_period: "2 weeks"
 earliest_start_date: "2025-09-01"
 
 # --- Experience --------------------------------------------------------------
-total_years_experience: 5
+total_years_experience:
 
 # --- Common yes/no screeners (defaults shown; override if different) ----------
 previously_employed_here: "No"   # "Have you previously worked for this company?"

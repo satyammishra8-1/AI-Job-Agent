@@ -66,9 +66,9 @@ flow with no real-world side effects.
 Pipeline: fetched 6 → keyword 5 → recency(30d) 5 → location 4 → seniority 4 → dedup 4 → experience 4
                         Ranked job matches
   #  Score  Verdict   Title                       Company            Location
-  1   89    strong    Data Scientist, Growth      Meridian Labs      Austin, TX
-  2   77    strong    Senior Data Engineer        Northwind Analytics Remote (US)
-  3   77    strong    Machine Learning Engineer…  Cobalt AI          New York, NY
+  1   89    strong    Software Engineering Intern Meridian Labs      Bengaluru, India
+  2   77    strong    Graduate Software Engineer Northwind Analytics Remote — India
+  3   77    strong    AI/ML Intern                Cobalt AI          Remote — worldwide
 ```
 
 ### Real run
@@ -130,10 +130,12 @@ call is ever spent on an off-target job.
 `releasedDate`). For the rare posting with no date, it falls back to a small
 seen-ids cache under `/data` ("first observed within the window").
 
-**Location rule.** Keep remote or in-country (US by default) roles; drop known
-non-US roles even if remote; keep unknown-country roles for the scorer to weigh.
-When a board leaves the country blank, it's inferred from the location text
-(`geo.py`) so a clearly-foreign posting ("Bengaluru, India") is dropped here too.
+**Location rule.** The example profile allows India and defaults to Bengaluru
+search terms. Bengaluru/Bangalore and other recognized Indian metros are
+inferred as India. Known non-India roles are dropped even when remote. Remote
+roles explicitly limited to India and explicitly worldwide roles are eligible;
+unknown-country remote roles require `remote_ok: true`. International countries
+can be added to `allowed_countries` when explicitly wanted.
 
 **Seniority + experience filters (optional).** Two profile knobs keep
 over-level roles out of results entirely — dropped before scoring, like the
@@ -148,7 +150,9 @@ location rule, not merely downranked:
   for a 5-year candidate (`experience.py`, runs after enrichment so every
   source's full JD is present).
 
-Both are off when unset, so existing profiles are unaffected. The scorer then
+Intern, new-grad, graduate and entry-level title markers rank as junior. Hard
+experience requirements are still honored when an experience filter is enabled.
+Both filters are off when unset. The scorer then
 only ranks roles that already fit your level and years.
 
 ### Scoring
@@ -317,7 +321,7 @@ src/job_agent/
                      (greenhouse, lever, ashby, smartrecruiters
                       + cross-company: sr_search, remotive, remoteok)
   search.py          fetch → keyword → recency → location → seniority → dedup → experience
-  geo.py             infer a country from free-text location (US-vs-foreign)
+  geo.py             infer a country from free-text location
   seniority.py       title → seniority level (for the max_seniority filter)
   experience.py      required years-of-experience parsed from a JD
   scoring.py         LLM fit scoring (structured + tool-use paths)

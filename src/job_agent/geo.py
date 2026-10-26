@@ -24,7 +24,7 @@ import re
 # those are disambiguated by an explicit country token instead, never by the
 # city alone.
 _CITY_COUNTRY: dict[str, tuple[str, ...]] = {
-    "India": ("bengaluru", "bangalore", "hyderabad", "mumbai", "pune", "chennai",
+    "India": ("bengaluru", "bangalore", "bengaluru urban", "hyderabad", "mumbai", "pune", "chennai",
               "gurgaon", "gurugram", "noida", "kolkata", "ahmedabad", "new delhi"),
     "Canada": ("toronto", "montreal", "mississauga", "calgary", "edmonton", "ottawa"),
     "United Kingdom": ("london", "edinburgh", "glasgow", "leeds", "bristol"),
@@ -223,3 +223,13 @@ def infer_country(location: str | None) -> str | None:
     if us:
         return "US"
     return foreign
+
+
+def is_worldwide_remote(location: str | None) -> bool:
+    """True only when a remote location explicitly advertises global eligibility."""
+    if not location:
+        return False
+    low = location.lower()
+    remote = any(term in low for term in ("remote", "work from anywhere", "distributed"))
+    global_scope = any(term in low for term in ("anywhere", "worldwide", "global", "globally"))
+    return remote and global_scope

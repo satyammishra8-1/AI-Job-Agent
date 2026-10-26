@@ -20,6 +20,10 @@ from job_agent.seniority import LEVEL_NAMES, seniority_rank
     ("Head of Machine Learning", "director"),
     ("VP of Engineering", "vp"),
     ("Junior Data Analyst", "junior"),
+    ("Software Engineering Intern", "junior"),
+    ("SDE Intern", "junior"),
+    ("Graduate Software Engineer", "junior"),
+    ("Fresher Web Developer", "junior"),
 ])
 def test_seniority_rank(title, expected):
     assert seniority_rank(title) == LEVEL_NAMES[expected]

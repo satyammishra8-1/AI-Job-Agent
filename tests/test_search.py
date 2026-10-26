@@ -116,6 +116,28 @@ def test_passes_location_infers_country_from_text(location, remote, expected):
     assert passes_location(job, profile()) is expected
 
 
+@pytest.mark.parametrize("location,remote,expected", [
+    ("Bengaluru Urban, India", False, True),
+    ("Bangalore, India", False, True),
+    ("Remote — India", True, True),
+    ("Remote — worldwide", True, True),
+    ("Remote — US only", True, False),
+    ("Remote", True, False),
+    ("Austin, TX", False, False),
+])
+def test_india_first_location_policy(location, remote, expected):
+    india = profile(location=LocationRule())
+    job = make_job(location=location, remote=remote, country=None)
+    assert passes_location(job, india) is expected
+
+
+def test_explicit_international_allow_list_remains_supported():
+    profile_intl = profile(location=LocationRule(
+        allowed_countries=["India", "United States", "Canada"], remote_ok=False))
+    assert passes_location(make_job(location="New York, NY", country="US"), profile_intl)
+    assert passes_location(make_job(location="Toronto", country="CA"), profile_intl)
+
+
 @pytest.mark.parametrize("location,expected", [
     # The exact strings that leaked past the US-only stage (2026-07-08 run),
     # end-to-end: country stamped by the source-level guess, then the stage rule.

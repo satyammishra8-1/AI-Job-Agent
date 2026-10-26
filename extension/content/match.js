@@ -21,6 +21,7 @@ var JA_MATCH = (() => {
      "estados unidos"],
     ["uk", "united kingdom", "great britain", "britain", "england"],
     ["uae", "united arab emirates"],
+    ["india", "republic of india"],
     ["bachelors", "bachelor", "bachelors degree", "bachelor s", "bs", "ba",
      "b s", "b a", "bsc", "undergraduate degree", "bachelor s degree"],
     ["masters", "master", "masters degree", "master s", "ms", "ma", "m s",
@@ -104,7 +105,7 @@ var JA_MATCH = (() => {
 
   const YES_G = ALIAS_GROUPS.findIndex((g) => g.includes("yes"));
   const NO_G = ALIAS_GROUPS.findIndex((g) => g.includes("no"));
-  const COUNTRY_GS = ["usa", "uk", "uae"].map(
+  const COUNTRY_GS = ["usa", "uk", "uae", "india"].map(
     (c) => ALIAS_GROUPS.findIndex((g) => g.includes(c)));
 
   const US_STATES = ["alabama", "alaska", "arizona", "arkansas", "california",

@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict
 
 from job_agent.config import SearchProfile
 from job_agent.experience import required_years
-from job_agent.geo import infer_country
+from job_agent.geo import infer_country, is_worldwide_remote
 from job_agent.models import Job
 from job_agent.seen_cache import SeenCache
 from job_agent.seniority import LEVEL_NAMES, seniority_rank
@@ -30,6 +30,18 @@ EXPERIENCE_GAP = 3
 
 # Country strings (any case) we treat as the United States.
 _US_ALIASES = {"US", "USA", "U.S.", "U.S.A.", "UNITED STATES", "UNITED STATES OF AMERICA"}
+_COUNTRY_CODES = {
+    "IN": "INDIA", "CA": "CANADA", "GB": "UNITED KINGDOM", "UK": "UNITED KINGDOM",
+    "IE": "IRELAND", "DE": "GERMANY", "FR": "FRANCE", "NL": "NETHERLANDS",
+    "AU": "AUSTRALIA", "NZ": "NEW ZEALAND", "JP": "JAPAN", "SG": "SINGAPORE",
+    "BR": "BRAZIL", "MX": "MEXICO", "CH": "SWITZERLAND", "SE": "SWEDEN",
+    "DK": "DENMARK", "NO": "NORWAY", "FI": "FINLAND", "BE": "BELGIUM",
+    "PL": "POLAND", "ES": "SPAIN", "PT": "PORTUGAL", "IT": "ITALY",
+    "KR": "SOUTH KOREA", "TW": "TAIWAN", "HK": "HONG KONG", "IL": "ISRAEL",
+    "AE": "UNITED ARAB EMIRATES", "PH": "PHILIPPINES", "ID": "INDONESIA",
+    "MY": "MALAYSIA", "TH": "THAILAND", "VN": "VIETNAM", "PK": "PAKISTAN",
+    "BD": "BANGLADESH", "LK": "SRI LANKA", "ZA": "SOUTH AFRICA",
+}
 
 
 class StageCounts(BaseModel):
@@ -72,7 +84,12 @@ def _country_allowed(country: str | None, allowed: list[str]) -> bool | None:
     if country is None:
         return None
     c = country.strip().upper()
-    allowed_up = {a.upper() for a in allowed}
+    c = "US" if c in _US_ALIASES else _COUNTRY_CODES.get(c, c)
+    allowed_up = {
+        "US" if a.strip().upper() in _US_ALIASES
+        else _COUNTRY_CODES.get(a.strip().upper(), a.strip().upper())
+        for a in allowed
+    }
     want_us = bool(allowed_up & {"US", "USA", "UNITED STATES"})
     if want_us and c in _US_ALIASES:
         return True
@@ -95,6 +112,8 @@ def passes_location(job: Job, profile: SearchProfile) -> bool:
     allowed = _country_allowed(country, rule.allowed_countries)
     if allowed is not None:
         return allowed
+    if job.remote and is_worldwide_remote(job.location):
+        return True
     if job.remote:
         return rule.remote_ok
     return True
