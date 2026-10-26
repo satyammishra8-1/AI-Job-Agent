@@ -175,23 +175,109 @@
   .inline-out { font-size: 12px; color: var(--muted); }
   .hidden { display: none !important; }
   @media (max-width: 720px) { .plan-row, .editor-grid { grid-template-columns: 1fr; } }
+  /* Product shell and responsive dashboard components. */
+  :root { --bg:#f5f7fb; --card:#fff; --border:#e4e9f1; --border-soft:#edf0f5;
+    --ink:#152238; --muted:#68778d; --faint:#8996a9; --accent:#5b5ce2;
+    --accent-soft:#f0f0ff; --shadow:0 8px 28px rgba(25,42,70,.055); }
+  body { max-width:1280px; padding:0 34px 88px; background:radial-gradient(ellipse at 12% 0%,rgba(91,92,226,.07),transparent 34%),var(--bg); }
+  header { position:sticky; top:0; z-index:20; margin:0 -34px; padding:13px 34px; background:rgba(255,255,255,.9);
+    backdrop-filter:blur(14px); border-bottom:1px solid var(--border); gap:11px; }
+  header .brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:11px; color:#fff;
+    font-size:17px; font-weight:700; background:linear-gradient(145deg,#7778f4,#4c4fc7); box-shadow:0 5px 12px rgba(91,92,226,.22); }
+  header h1 { font-size:17px; letter-spacing:-.035em; }
+  header .brand-caption { display:block; color:var(--muted); font-size:10px; line-height:1.15; font-weight:500; }
+  .topnav { display:flex; gap:5px; margin-left:32px; }
+  .topnav a,.topnav button { padding:8px 12px; border:0; box-shadow:none; background:transparent; color:var(--muted); font-size:12.5px; font-weight:600; border-radius:8px; }
+  .topnav a:hover,.topnav button:hover:not(:disabled),.topnav a.active { color:var(--accent); background:var(--accent-soft); }
+  .topnav button:disabled { opacity:.55; cursor:not-allowed; }
+  header .sub { margin-left:auto; display:flex; align-items:center; gap:7px; color:#68778d; font-size:11px; border:1px solid var(--border); background:#fff; border-radius:99px; padding:5px 10px; }
+  header .sub:before { content:""; width:6px; height:6px; border-radius:50%; background:#24a47b; }
+  section { margin-top:30px; } section + section { border:0; padding-top:0; } #sec-jobs { margin-top:30px; }
+  .hero { display:flex; justify-content:space-between; gap:24px; align-items:center; padding:30px 32px; color:#fff; border-radius:20px; overflow:hidden; position:relative; background:#202c4c; box-shadow:0 18px 40px rgba(27,39,72,.14); }
+  .hero:after { content:""; position:absolute; width:330px; height:330px; right:9%; top:-220px; border:1px solid rgba(255,255,255,.1); border-radius:50%; box-shadow:0 0 0 35px rgba(255,255,255,.025),0 0 0 75px rgba(255,255,255,.02); }
+  .hero-copy,.hero-controls { position:relative; z-index:1; } .eyebrow { color:#bfc3ff; text-transform:uppercase; font-size:10px; font-weight:700; letter-spacing:.13em; margin-bottom:9px; }
+  .hero h2 { color:white; font-size:clamp(25px,3vw,34px); line-height:1.14; letter-spacing:-.045em; margin:0 0 9px; }
+  .hero p { max-width:600px; color:#c5cce0; font-size:13px; } .hero-controls { display:flex; flex-direction:column; align-items:flex-end; gap:9px; min-width:204px; }
+  .days-control { color:#c5cce0; font-size:11px; } .days-control input { width:56px; text-align:center; margin:0 4px; border-color:#59647e; color:#fff; background:#303c5b; }
+  button.primary { background:var(--accent); border-color:var(--accent); box-shadow:0 5px 14px rgba(91,92,226,.2); }
+  .hero button.primary { background:#fff; border-color:#fff; color:#252c5b; font-weight:700; padding:11px 17px; border-radius:10px; }
+  .hero button.primary:hover:not(:disabled) { background:#f0f0ff; }
+  .section-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin:27px 0 12px; }
+  h2 { font-size:18px; font-weight:700; letter-spacing:-.025em; margin:0; } .sec-sub { color:var(--muted); font-size:12.5px; margin:4px 0 0; }
+  .card { border-color:var(--border); border-radius:13px; box-shadow:var(--shadow); }
+  .toolbar { background:#fff; border:1px solid var(--border); border-radius:12px; padding:11px 13px; gap:10px; margin:0 0 13px; box-shadow:0 2px 8px rgba(25,42,70,.025); }
+  .toolbar label { color:var(--muted); font-size:11.5px; display:flex; align-items:center; gap:6px; }
+  select,input[type="date"],input[type="number"],textarea { border-color:#dfe5ee; border-radius:8px; padding:7px 9px; font-size:12px; }
+  button { border-radius:8px; padding:8px 12px; font-weight:600; transition:transform .15s ease,border-color .15s ease,background .15s ease; }
+  button:hover:not(:disabled) { transform:translateY(-1px); }
+  .jobs-list,.apps-list { display:grid; gap:12px; }
+  .job-card { display:grid; grid-template-columns:minmax(0,1fr) 112px; gap:16px; padding:19px 20px; border:1px solid var(--border); border-radius:14px; background:#fff; box-shadow:var(--shadow); transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease; }
+  .job-card:hover { border-color:#c9cbfa; box-shadow:0 12px 32px rgba(25,42,70,.09); transform:translateY(-1px); }
+  .job-title { font-size:17px; font-weight:700; letter-spacing:-.025em; line-height:1.3; }
+  .job-company { color:#3e4d63; font-size:13px; font-weight:600; margin-top:4px; }
+  .job-meta { display:flex; flex-wrap:wrap; align-items:center; gap:7px 15px; margin-top:11px; color:var(--muted); font-size:11.5px; }
+  .job-meta span { display:inline-flex; align-items:center; gap:5px; } .job-meta .meta-dot { width:4px; height:4px; background:#a7b2c2; border-radius:50%; }
+  .match-copy { color:var(--muted); font-size:11.5px; margin-top:13px; } .match-copy b { color:#34445e; font-weight:700; }
+  .skill-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
+  .skill-chip { display:inline-flex; padding:4px 8px; border:1px solid #e5e7fa; background:#f7f7ff; color:#4d50a8; border-radius:99px; font-size:10.5px; }
+  .missing-list .skill-chip { color:#8d5b24; border-color:#f2e2c8; background:#fffaf1; }
+  .job-actions { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:15px; } .job-actions button { font-size:11.5px; padding:7px 10px; }
+  .button-link { display:inline-flex; align-items:center; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; font-size:11.5px; font-weight:600; }
+  .editor { margin-top:-5px; padding:14px 18px; border:1px solid var(--border); border-radius:0 0 13px 13px; background:#fff; box-shadow:var(--shadow); }
+  .job-actions .inline-out { flex-basis:100%; } .scorebox { display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:2px; }
+  .score-ring { width:72px; height:72px; display:grid; place-items:center; border-radius:50%; background:conic-gradient(var(--score-color,#5b5ce2) var(--score,0%),#eceef5 0); position:relative; }
+  .score-ring:before { content:""; position:absolute; inset:5px; border-radius:50%; background:#fff; } .score-value { position:relative; color:var(--ink); font-size:20px; font-weight:750; letter-spacing:-.04em; }
+  .score-caption { color:var(--muted); font-size:10px; font-weight:700; text-align:center; } .score-strength { font-size:10px; color:#4c53a4; background:#f1f1ff; border-radius:99px; padding:4px 8px; white-space:nowrap; }
+  .app-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:16px 18px; background:#fff; border:1px solid var(--border); border-radius:13px; box-shadow:var(--shadow); }
+  .app-company { font-size:14px; font-weight:700; } .app-role { color:var(--muted); font-size:12px; margin-top:2px; }
+  .app-details { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; color:var(--muted); font-size:11px; } .app-side { display:flex; align-items:flex-start; gap:8px; }
+  .app-side select { min-width:120px; } .tile { display:flex; align-items:center; gap:13px; padding:15px 17px; border-radius:12px; }
+  .tile .metric-icon { width:35px; height:35px; flex:none; display:grid; place-items:center; border-radius:10px; color:var(--accent); background:var(--accent-soft); font-size:13px; font-weight:800; }
+  .tile .v { font-size:23px; line-height:1.1; } .tile .k { font-size:11px; text-transform:capitalize; margin-top:4px; }
+  .tile .flag { margin-left:auto; } .tile.active { border-color:#aeb0f4; box-shadow:0 0 0 2px rgba(91,92,226,.1); }
+  .empty,.starter { padding:30px 22px; border:1px dashed #d7deea; border-radius:14px; background:rgba(255,255,255,.78); text-align:center; color:var(--muted); }
+  .empty h3,.starter h3 { color:var(--ink); font-size:16px; margin-bottom:6px; } .starter p,.empty p { max-width:500px; margin:0 auto 14px; font-size:12.5px; }
+  #apps-body .toolbar { margin-top:14px; } #sec-pipeline { padding:17px 19px; border:1px solid var(--border); border-radius:13px; background:#fff; }
+  #sec-pipeline h2 { font-size:14px; } #sec-pipeline .sec-sub { margin-top:6px; font-size:11.5px; }
+  .pill { padding:4px 9px; font-size:10.5px; font-weight:650; } .editor-grid { padding:10px 4px 4px; }
+  #searchlog { border-radius:11px; padding:13px 16px; }
+  @media (max-width:760px) { body { padding:0 16px 52px; } header { margin:0 -16px; padding:11px 16px; flex-wrap:wrap; }
+    .topnav { order:3; width:100%; margin:3px 0 0; overflow:auto; } .topnav a,.topnav button { padding:7px 9px; }
+    .hero { align-items:flex-start; flex-direction:column; padding:24px 21px; gap:17px; } .hero-controls { align-items:flex-start; width:100%; }
+    .section-heading { align-items:flex-start; flex-direction:column; } .job-card { grid-template-columns:minmax(0,1fr) 82px; padding:15px; gap:9px; }
+    .score-ring { width:62px; height:62px; } .score-value { font-size:17px; } .app-card { grid-template-columns:1fr; } .app-side { justify-content:space-between; } }
+  @media (max-width:460px) { .sub { display:none !important; } .job-card { grid-template-columns:1fr; }
+    .scorebox { grid-row:1; flex-direction:row; justify-content:flex-start; align-items:center; } .score-ring { width:48px; height:48px; }
+    .score-ring:before { inset:4px; } .score-value { font-size:13px; } .score-strength { margin-left:3px; } .toolbar { align-items:flex-start; } }
 </style>
 </head>
 <body>
 
 <header>
-  <span class="dot"></span>
-  <h1>Job Agent</h1>
+  <span class="brand-mark" aria-hidden="true">J</span>
+  <h1>Job Agent<span class="brand-caption">AI-powered job search copilot</span></h1>
+  <nav class="topnav" aria-label="Main navigation">
+    <a class="active" href="#sec-jobs">Jobs</a><a href="#sec-apps">Applications</a>
+    <button type="button" disabled aria-disabled="true" title="Profile settings are not available yet">Profile</button>
+    <button type="button" disabled aria-disabled="true" title="Settings are not available yet">Settings</button>
+  </nav>
   <span class="sub">private — runs only on this computer</span>
 </header>
 
 <!-- ── Jobs (things to do — leads the page) ─────────────────────────────── -->
 <section id="sec-jobs">
-  <h2>Job matches</h2>
-  <div class="sec-sub" id="gen-at">Jobs found by your last search, best matches first.</div>
+  <div class="hero">
+    <div class="hero-copy"><div class="eyebrow">A smarter way to find your next role</div>
+      <h2>Find jobs that actually fit you.</h2>
+      <p>Job Agent searches relevant opportunities and ranks them against your skills, experience, and preferences.</p>
+    </div>
+    <div class="hero-controls"><button class="primary" id="btn-search">Find new jobs</button>
+      <label class="days-control">Posted within <input id="days" type="number" min="1" max="90" value="30"> days</label>
+    </div>
+  </div>
+  <div class="section-heading"><div><h2>Your job matches</h2>
+    <div class="sec-sub" id="gen-at">Jobs found by your last search, best matches first.</div></div></div>
   <div class="toolbar">
-    <button class="primary" id="btn-search">Find new jobs</button>
-    <label>posted in the last <input id="days" type="number" min="1" max="90" value="30"> days</label>
     <span style="flex:1"></span>
     <label>Status <select id="jf-status"><option value="">all</option></select></label>
     <label>Source <select id="jf-source"><option value="">all</option></select></label>
@@ -202,7 +288,7 @@
     <label><input type="checkbox" id="jf-hide-applied" checked> Hide jobs I've applied to</label>
   </div>
   <div class="card" id="searchlog"></div>
-  <div class="card tablewrap"><div id="jobs-table"></div></div>
+  <div id="jobs-table"></div>
 
   <div class="card panel hidden" id="resume-panel">
     <div class="head"><b>Resume</b><span class="meta" id="resume-meta"></span>
@@ -216,7 +302,7 @@
 <!-- ── Applications (history — collapsible) ─────────────────────────────── -->
 <section id="sec-apps">
   <div class="h2-row">
-    <h2>Your applications</h2>
+    <h2>Application tracker</h2>
     <button class="ghost" id="apps-toggle" aria-expanded="true">Hide</button>
   </div>
   <div class="sec-sub">Every job you've saved or applied to — update its status,
@@ -314,13 +400,15 @@ function renderTiles() {
   const overdue = APPS.filter((r) => r.needs_follow_up).length;
   const TILE_NAMES = {total: "jobs tracked", submitted: "submitted",
                       paused: "waiting on you", failed: "need attention"};
+  const TILE_ICONS = {total: "↗", submitted: "✓", paused: "…", failed: "!"};
   const current = $("#af-status").value;
   $("#tiles").innerHTML = ["total", "submitted", "paused", "failed"].map((k) => {
     const active = k === "total" ? current === "" : current === k;
     return `
     <div class="card tile ${active ? "active" : ""}" data-tile="${k}"
          title="Click to ${k === "total" ? "show everything" : "filter to these"}">
-      <div class="v">${c[k]}</div><div class="k">${TILE_NAMES[k]}</div>
+      <span class="metric-icon" aria-hidden="true">${TILE_ICONS[k]}</span>
+      <div><div class="v">${c[k]}</div><div class="k">${TILE_NAMES[k]}</div></div>
       ${k === "total" && overdue ? `<div class="flag"><span class="pill p-followup">${overdue} need follow-up</span></div>` : ""}
     </div>`;
   }).join("");
@@ -334,39 +422,27 @@ function renderApps() {
     ? a.company.localeCompare(b.company) : b.date.localeCompare(a.date));
   if (!rows.length) {
     $("#apps-table").innerHTML = APPS.length
-      ? `<div class="empty">No applications match these filters — set them back to “all” to see everything.</div>`
-      : `<div class="starter"><b>No applications yet — here's how to get started:</b>
-          <ol>
-            <li>Click <b>Find new jobs</b> above to search job boards for roles that fit you.</li>
-            <li>Pick a job you like and click <b>Apply</b> — a browser window opens with the
-                form already filled in where it's safe to do so.</li>
-            <li>Review every answer, complete anything marked “needs your answer”, and
-                click <b>Submit application</b> when you're happy. It will show up here.</li>
-          </ol></div>`;
+      ? '<div class="empty"><h3>No applications match these filters.</h3><p>Clear a filter or choose all to see your tracked opportunities.</p></div>'
+      : '<div class="starter"><h3>Your next opportunity starts here.</h3>' +
+        '<p>Search fresh roles and Job Agent will rank opportunities against your profile. Track applications and review every answer before submitting.</p>' +
+        '<button class="primary" data-find-jobs="1">Find new jobs</button></div>';
     return;
   }
   const body = rows.map((r) => {
     const meta = {company: r.company, title: r.title, source: r.source};
-    const key = r.job_id || r.attempt_id;      // every record is addressable
+    const key = r.job_id || r.attempt_id;
     const ids = {job_id: r.job_id || "", attempt_id: r.attempt_id || ""};
-    return `
-    <tr>
-      <td class="date">${esc((r.date || "").slice(0, 10))}</td>
-      <td>${esc(r.company)}</td>
-      <td class="co">${esc(r.title)}</td>
-      <td>${statusSelect(r.job_id, r.status, meta, r.attempt_id)}${followFlag(r)}</td>
-      <td class="src">${esc(r.source)}</td>
-      <td class="date">${esc(r.follow_up) || "<span class='loc'>—</span>"}</td>
-      <td><span class="note-preview">${esc(r.notes)}</span></td>
-      <td><button class="ghost" data-edit="${esc(key)}">Edit</button></td>
-    </tr>
-    <tr class="editor hidden" data-editor="${esc(key)}"><td colspan="8">
-      ${editorHtml(key, r, meta, ids)}</td></tr>`;
+    return '<article class="app-card" data-app-card="' + esc(key) + '">' +
+      '<div><div class="app-company">' + esc(r.company) + '</div><div class="app-role">' + esc(r.title) + '</div>' +
+      '<div class="app-details"><span>' + esc((r.date || "").slice(0, 10)) + '</span><span>Source: ' + esc(r.source) + '</span>' +
+      '<span>Follow up: ' + (esc(r.follow_up) || "?") + '</span>' +
+      (r.notes ? '<span class="note-preview" title="' + esc(r.notes) + '">Note: ' + esc(r.notes) + '</span>' : '') + '</div>' +
+      '<div style="margin-top:10px">' + followFlag(r) + '</div></div>' +
+      '<div class="app-side">' + statusSelect(r.job_id, r.status, meta, r.attempt_id) +
+      '<button class="ghost" data-edit="' + esc(key) + '">Edit</button></div></article>' +
+      '<div class="editor hidden" data-editor="' + esc(key) + '">' + editorHtml(key, r, meta, ids) + '</div>';
   }).join("");
-  $("#apps-table").innerHTML =
-    `<table><thead><tr><th>Date</th><th>Company</th><th>Role</th><th>Status</th>
-     <th>Source</th><th>Follow-up</th><th>Notes</th><th></th></tr></thead>
-     <tbody>${body}</tbody></table>`;
+  $("#apps-table").innerHTML = '<div class="apps-list">' + body + '</div>';
 }
 
 function editorHtml(key, r, meta, ids = null) {
@@ -441,59 +517,69 @@ function renderJobs() {
   rows = rows.slice().sort((a, b) => sort === "company"
     ? a.company.localeCompare(b.company)
     : sort === "newest"
-      // ISO timestamps compare lexicographically; jobs without one sink
-      ? (b.first_seen || "").localeCompare(a.first_seen || "")
+      ? (b.posted_at || b.first_seen || "").localeCompare(a.posted_at || a.first_seen || "")
       : (b.score ?? -1) - (a.score ?? -1));
   const hiddenNote = hiddenN
-    ? `<div class="empty" style="padding:10px 16px">${hiddenN} job(s) you already applied to are hidden — untick “Hide applied” to show them.</div>` : "";
+    ? '<div class="empty" style="padding:10px 16px">' + hiddenN +
+      ' job(s) you already applied to are hidden ? untick ?Hide applied? to show them.</div>' : "";
   if (!rows.length) {
     $("#jobs-table").innerHTML = hiddenNote + (JOBS.length
-      ? `<div class="empty">No jobs match these filters — loosen them to see more.</div>`
-      : `<div class="starter"><b>No jobs here yet.</b>
-          Click <b>Find new jobs</b> above — it searches the job boards, scores each
-          role against your profile, and lists the best matches here.</div>`);
+      ? '<div class="empty"><h3>No jobs match these filters.</h3><p>Adjust your status, source, or score filters to explore more results.</p></div>'
+      : '<div class="starter"><h3>Your next opportunity starts here.</h3>' +
+        '<p>Search fresh opportunities and Job Agent will rank roles against your profile.</p>' +
+        '<button class="primary" data-find-jobs="1">Find new jobs</button></div>');
     return;
   }
-  const body = rows.map((j) => {
+  const cards = rows.map((j) => {
     const t = j.tracked, meta = {company: j.company, title: j.title, source: j.source};
-    const appliedPill = j.already_applied
-      ? ` <span class="pill p-applied">already applied</span>` : "";
-    const newPill = j.first_seen_this_scan === true
-      ? ` <span class="pill p-new">NEW</span>` : "";
-    return `
-    <tr>
-      <td class="num">${j.score ?? "—"}</td>
-      <td>${pill(j.verdict || "unscored")}${appliedPill}${newPill}</td>
-      <td data-job-id="${esc(j.id)}">${j.url
-        ? `<a class="tt" href="${esc(j.url)}" target="_blank" rel="noreferrer" title="${esc(j.title)}">${esc(j.title)}</a>`
-        : `<span class="tt" title="${esc(j.title)}">${esc(j.title)}</span>`}</td>
-      <td class="co">${esc(j.company)}</td>
-      <td class="loc"><span class="tt tt-loc" title="${esc(j.location)}">${esc(j.location)}</span></td>
-      <td class="src">${esc(j.source)}</td>
-      <td>${statusSelect(j.id, t?.status || "", meta)}${followFlag(t)}</td>
-      <td class="actions">
-        <button class="primary" data-apply="${esc(j.id)}"
-          title="Open this job in your own Chrome — the extension fills, you submit">Apply</button>
-        <button class="ghost" data-mark="${esc(j.id)}"
-          title="${t?.status === "applied"
-            ? "Put this job's status back to what it was"
-            : "Record that you applied — works whether or not autofill ran"}">${
-          t?.status === "applied" ? "Undo applied" : "Mark applied"}</button>
-        <button class="ghost" data-tailor="${esc(j.id)}"
-          title="Write a version of your resume tuned to this job">Tailor</button>
-        <button class="ghost" data-resume="${esc(j.id)}" data-title="${esc(j.company)} — ${esc(j.title)}"
-          title="View the tailored resume">Resume</button>
-        <button class="ghost" data-edit="${esc(j.id)}" title="Add notes or a follow-up date">Notes</button>
-        <div class="inline-out" data-out="${esc(j.id)}"></div>
-      </td>
-    </tr>
-    <tr class="editor hidden" data-editor="${esc(j.id)}"><td colspan="8">
-      ${editorHtml(j.id, t, meta)}</td></tr>`;
+    const score = j.score !== null && j.score !== undefined && Number.isFinite(Number(j.score))
+      ? Math.max(0, Math.min(100, Number(j.score))) : null;
+    const verdict = j.verdict || "unscored";
+    const strength = score !== null && score >= 90 ? "Excellent match"
+      : verdict === "strong" ? "Strong match" : verdict === "possible" ? "Possible match"
+        : verdict === "skip" ? "Low match" : "Not scored";
+    const scoreColor = verdict === "strong" ? "#19a57a" : verdict === "possible" ? "#d99a32" : "#858da0";
+    const location = j.location || "Location not listed";
+    const modality = j.remote === true ? "Remote" : /hybrid/i.test(location) ? "Hybrid"
+      : /on.?site/i.test(location) ? "On-site" : "";
+    const posted = j.posted_at ? "Posted " + new Date(j.posted_at).toLocaleDateString()
+      : j.first_seen ? "Added " + new Date(j.first_seen).toLocaleDateString() : "";
+    const insights = Array.isArray(j.reasons) ? j.reasons.filter(Boolean) : [];
+    const missing = Array.isArray(j.missing_requirements) ? j.missing_requirements.filter(Boolean) : [];
+    const matchHtml = insights.length
+      ? '<div class="match-copy"><b>Why it matches</b><div class="skill-list">' +
+        insights.map((x) => '<span class="skill-chip">' + esc(x) + '</span>').join("") + '</div></div>' : "";
+    const missingHtml = missing.length
+      ? '<div class="match-copy"><b>Potential gaps</b><div class="skill-list missing-list">' +
+        missing.map((x) => '<span class="skill-chip">' + esc(x) + '</span>').join("") + '</div></div>' : "";
+    const appliedPill = j.already_applied ? ' <span class="pill p-applied">already applied</span>' : "";
+    const newPill = j.first_seen_this_scan === true ? ' <span class="pill p-new">NEW</span>' : "";
+    const scoreHtml = score === null
+      ? '<div class="score-ring" style="--score:0%;--score-color:' + scoreColor + '"><span class="score-value">?</span></div>'
+      : '<div class="score-ring" style="--score:' + score + '%;--score-color:' + scoreColor + '"><span class="score-value">' + score + '</span></div>';
+    const view = j.url ? '<a class="button-link" href="' + esc(j.url) + '" target="_blank" rel="noreferrer">View job</a>' : "";
+    return '<article class="job-card" data-job-card="' + esc(j.id) + '">' +
+      '<div><a class="job-title" href="' + esc(j.url || "#") + '" target="_blank" rel="noreferrer">' + esc(j.title) + '</a>' +
+      '<div class="job-company">' + esc(j.company) + appliedPill + newPill + '</div>' +
+      '<div class="job-meta"><span>' + esc(location) + '</span>' +
+      (modality ? '<span><i class="meta-dot"></i>' + modality + '</span>' : '') +
+      '<span><i class="meta-dot"></i>' + esc(j.source || "Source unavailable") + '</span>' +
+      (posted ? '<span><i class="meta-dot"></i>' + esc(posted) + '</span>' : '') + '</div>' +
+      '<div class="match-copy"><b>' + esc(strength) + '</b>' + pill(verdict) +
+      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml +
+      '<div class="job-actions">' + view +
+      '<button class="primary" data-apply="' + esc(j.id) + '" title="Open this job in your own browser; you review and submit">Apply</button>' +
+      '<button data-mark="' + esc(j.id) + '">' + (t?.status === "applied" ? "Undo applied" : "Mark applied") + '</button>' +
+      '<button data-tailor="' + esc(j.id) + '">Tailor resume</button>' +
+      '<button class="ghost" data-resume="' + esc(j.id) + '" data-title="' + esc(j.company + " ? " + j.title) + '">Resume</button>' +
+      '<button class="ghost" data-edit="' + esc(j.id) + '" title="Add notes or follow-up">Notes</button>' +
+      '<span class="inline-out" data-out="' + esc(j.id) + '"></span></div>' +
+      '<div class="app-side" style="margin-top:12px">' + statusSelect(j.id, t?.status || "", meta) + followFlag(t) + '</div></div>' +
+      '<div class="scorebox">' + scoreHtml + '<span class="score-caption">FIT SCORE</span>' +
+      '<span class="score-strength">' + esc(strength) + '</span></div></article>' +
+      '<div class="editor hidden" data-editor="' + esc(j.id) + '">' + editorHtml(j.id, t, meta) + '</div>';
   }).join("");
-  $("#jobs-table").innerHTML = hiddenNote +
-    `<table><thead><tr><th style="text-align:right">Score</th><th>Match</th><th>Title</th>
-     <th>Company</th><th>Location</th><th>Source</th><th>Status</th><th>Actions</th></tr></thead>
-     <tbody>${body}</tbody></table>`;
+  $("#jobs-table").innerHTML = hiddenNote + '<div class="jobs-list">' + cards + '</div>';
 }
 
 async function loadJobs() {
@@ -802,6 +888,7 @@ document.addEventListener("click", (ev) => {
   const out = (id) => document.querySelector(`[data-out="${id}"]`);
   const dummyOut = {textContent: "", classList: {add() {}, remove() {}}};
   if (t.dataset.tailor) runTailor(t.dataset.tailor, out(t.dataset.tailor));
+  if (t.dataset.findJobs) $("#btn-search").click();
   if (t.dataset.apply) openApply(t.dataset.apply, out(t.dataset.apply) || dummyOut);
   if (t.dataset.mark) toggleApplied(t.dataset.mark, out(t.dataset.mark));
   if (t.dataset.applyctl) {          // the old Playwright-assisted window, on request
@@ -827,9 +914,8 @@ document.addEventListener("click", (ev) => {
     {approval_token: SESSION.token}));
   if (t.dataset.scancel) sessionAction(() => sPost("/api/apply/cancel", {}));
   if (t.dataset.edit) {
-    // the Edit/Notes button toggles the editor row nearest to the clicked row
-    const row = t.closest("tr");
-    let ed = row.nextElementSibling;
+    const card = t.closest("[data-job-card], [data-app-card]");
+    const ed = card?.nextElementSibling;
     if (ed && ed.dataset.editor === t.dataset.edit) ed.classList.toggle("hidden");
   }
   const tile = t.closest("[data-tile]");
