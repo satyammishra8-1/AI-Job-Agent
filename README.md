@@ -168,6 +168,26 @@ fails the job is kept but marked `unscored` rather than crashing the run.
 A **tool-use** path that returns the same JSON as a forced tool call is also
 implemented as a reliability fallback (`--method tool`).
 
+### Master profile, eligibility, and fit
+
+The dashboard's **My Profile** section edits the existing local
+`data/career_facts.yaml` source of truth. It supports education details, career
+status and experience, categorized skills, projects, experience, certifications,
+location preferences, and evidence/source notes. The profile starts blank; add
+only your own facts. Skills are shown as evidence-backed matches only when they
+are tied to a resume/career-facts entry, project evidence, or an explicit
+`skill_evidence` source.
+
+Each scored result keeps the existing Gemini fit score and separately reports
+eligibility (`eligible`, `review`, `not_eligible`) and a recommendation
+(`recommended`, `review`, `skip`). Clear hard experience or location mismatches
+override fit; uncertain education, work authorization, or missing profile facts
+remain `review`. A score of 50 or more can be recommended when eligibility is
+clear; 40-49 remains for review, and below 40 is normally skipped. Genuine
+verification remains ahead of fit in ranking, and skill explanations are
+derived from the job text and the profile evidence rather than generated as
+unsupported facts. ATS readiness remains unassessed.
+
 ### Growing the board list (`discover`)
 
 Greenhouse, Lever, and Ashby have **no** public cross-company index (verified

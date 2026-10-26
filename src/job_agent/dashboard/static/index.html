@@ -285,7 +285,7 @@
   <nav class="topnav" aria-label="Main navigation">
     <a class="active" href="#sec-today">Today</a><a href="#sec-jobs">Opportunities</a>
     <a href="#sec-apps">Tracker</a>
-    <button type="button" disabled aria-disabled="true" title="Profile settings are not available yet">Profile</button>
+    <a href="#sec-profile">My Profile</a>
     <button type="button" disabled aria-disabled="true" title="Settings are not available yet">Settings</button>
   </nav>
   <span class="sub">private — runs only on this computer</span>
@@ -352,6 +352,15 @@
 </section>
 
 <!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
+<section id="sec-profile">
+  <h2>My Profile</h2>
+  <div class="sec-sub">Edit your local master profile. Skills, projects, education, and experience should include evidence/source details when available. No personal details are prefilled.</div>
+  <div class="card" style="padding:16px">
+    <textarea id="profile-json" aria-label="Master profile JSON" rows="22" spellcheck="false" style="width:100%;font:12px/1.5 ui-monospace,monospace"></textarea>
+    <div class="toolbar"><button class="primary" id="profile-save">Save profile</button><span id="profile-status" aria-live="polite"></span></div>
+  </div>
+</section>
+
 <section id="sec-pipeline">
   <h2>How applying works</h2>
   <div class="sec-sub">Clicking <b>Apply</b> opens the real application form in a browser
@@ -382,6 +391,7 @@ const LABELS = {
 };
 const label = (v) => LABELS[v] || v;
 const _VERIFICATION_RANK = {verified: 2, needs_review: 1, suspicious: 0};
+const _ELIGIBILITY_RANK = {eligible: 2, review: 1, not_eligible: 0};
 
 let APPS = [];   // /api/applications records
 let JOBS = [];   // /api/jobs jobs
@@ -394,6 +404,8 @@ async function api(path, opts) {
 }
 const post = (path, body) => api(path, {
   method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+const put = (path, body) => api(path, {
+  method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
 
 const pill = (v, extra = "") => v
   ? `<span class="pill p-${esc(v)}">${esc(label(v))}</span>${extra}` : `<span class="loc">—</span>`;
@@ -585,6 +597,8 @@ function renderJobs() {
       ? (b.posted_at || b.first_seen || "").localeCompare(a.posted_at || a.first_seen || "")
       : ((_VERIFICATION_RANK[b.verification?.status] ?? 1) -
          (_VERIFICATION_RANK[a.verification?.status] ?? 1)) ||
+        ((_ELIGIBILITY_RANK[b.eligibility?.status] ?? 1) -
+         (_ELIGIBILITY_RANK[a.eligibility?.status] ?? 1)) ||
         ((b.score ?? -1) - (a.score ?? -1)));
   const hiddenNote = hiddenN
     ? '<div class="empty" style="padding:10px 16px">' + hiddenN +
@@ -611,8 +625,8 @@ function renderJobs() {
       : /on.?site/i.test(location) ? "On-site" : "";
     const posted = j.posted_at ? "Posted " + new Date(j.posted_at).toLocaleDateString()
       : j.first_seen ? "Added " + new Date(j.first_seen).toLocaleDateString() : "";
-    const insights = Array.isArray(j.reasons) ? j.reasons.filter(Boolean) : [];
-    const missing = Array.isArray(j.missing_requirements) ? j.missing_requirements.filter(Boolean) : [];
+    const insights = Array.isArray(j.supported_matches) ? j.supported_matches.filter(Boolean) : [];
+    const missing = Array.isArray(j.supported_gaps) ? j.supported_gaps.filter(Boolean) : [];
     const matchHtml = insights.length
       ? '<div class="match-copy"><b>Why it matches</b><div class="skill-list">' +
         insights.map((x) => '<span class="skill-chip">' + esc(x) + '</span>').join("") + '</div></div>' : "";
@@ -633,8 +647,12 @@ function renderJobs() {
     const verificationHtml = '<div class="verification-card verification-' + verificationStatus + '">' +
       '<div class="verification-title">Genuine</div><p><b>' + verificationLabel + '</b> · ' +
       esc(verification.reason || "Review the source and employer details.") + '</p>' + verificationUrl + '</div>';
+    const eligibility = j.eligibility || {status: "review", reasons: ["Eligibility not assessed"]};
+    const eligibilityText = (eligibility.reasons || []).join(" ");
     const signals = '<div class="job-signals">' +
-      '<span class="job-signal"><b>Eligibility</b> Not assessed</span>' +
+      '<span class="job-signal"><b>Eligibility</b> ' + esc(eligibility.status || "review") +
+      (eligibilityText ? ' · ' + esc(eligibilityText) : '') + '</span>' +
+      '<span class="job-signal"><b>Decision</b> ' + esc(j.decision || "review") + '</span>' +
       '<span class="job-signal"><b>ATS</b> Readiness not assessed</span>' +
       '<span class="job-signal"><b>Resume</b> ' + esc(resumeStatus) + '</span></div>';
     const nextAction = t?.next_action ||
@@ -680,6 +698,23 @@ async function loadJobs() {
   fillFilter($("#jf-status"), JOBS.map((j) => j.tracked?.status));
   renderToday();
   renderJobs();
+}
+
+async function loadProfile() {
+  const data = await api("/api/profile");
+  $("#profile-json").value = JSON.stringify(data.profile, null, 2);
+  $("#profile-status").textContent = data.configured
+    ? "Loaded from data/career_facts.yaml" : "No profile saved yet; save to create data/career_facts.yaml";
+}
+
+async function saveProfile() {
+  const status = $("#profile-status");
+  status.classList.remove("err");
+  try {
+    const data = await put("/api/profile", JSON.parse($("#profile-json").value));
+    $("#profile-json").value = JSON.stringify(data.profile, null, 2);
+    status.textContent = "Saved to data/career_facts.yaml";
+  } catch (e) { status.textContent = e.message; status.classList.add("err"); }
 }
 
 async function runSearch() {
@@ -1064,6 +1099,7 @@ document.addEventListener("change", (ev) => {
 $("#jf-score").addEventListener("input", renderJobs);
 $("#jf-hide-applied").addEventListener("change", renderJobs);
 $("#btn-search").addEventListener("click", runSearch);
+$("#profile-save").addEventListener("click", saveProfile);
 $("#apps-toggle").addEventListener("click", () => {
   const body = $("#apps-body");
   const hidden = body.classList.toggle("hidden");
@@ -1074,6 +1110,7 @@ $("#apps-toggle").addEventListener("click", () => {
 
 loadApps().catch((e) => $("#apps-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
 loadJobs().catch((e) => $("#jobs-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
+loadProfile().catch((e) => $("#profile-status").textContent = e.message);
 </script>
 </body>
 </html>

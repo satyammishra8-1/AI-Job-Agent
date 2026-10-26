@@ -99,3 +99,34 @@ def test_score_jobs_uses_injected_client():
     results = score_jobs([JOB, JOB], settings, PROFILE, client=client)
     assert len(results) == 2
     assert all(r.verdict == "strong" for r in results)
+
+
+def test_score_jobs_computes_eligibility_and_recommends_55_percent_fit():
+    from job_agent.tailor.career_facts import CareerFacts
+
+    job = JOB.model_copy(update={"title": "Software Engineering Intern",
+                                 "location": "Bengaluru, India", "country": "India"})
+    candidate = CareerFacts(career_status="student", location="Bengaluru, India")
+    client = FakeClient([text_response(json.dumps(
+        {"score": 55, "verdict": "possible", "reasons": [], "missing_requirements": []}))])
+    result = score_jobs([job], Settings(gemini_api_key="x", model="m"), PROFILE,
+                        client=client, candidate=candidate)[0]
+    assert result.score == 55
+    assert result.eligibility.status == "eligible"
+    assert result.decision == "recommended"
+
+
+def test_scoring_prompt_only_marks_evidenced_skills_as_supported():
+    from job_agent.scoring import build_user_prompt
+    from job_agent.tailor.career_facts import CareerFacts, Employer, Project
+
+    candidate = CareerFacts(
+        skills_inventory={"Languages": ("Python", "Java")},
+        employers=(Employer(company="Acme", title="Developer", duration="2024-present",
+                            real_skills=("SQL",)),),
+        projects=(Project(name="Unlinked", technologies=("React",)),),
+    )
+    prompt = build_user_prompt(JOB, PROFILE, candidate)
+    assert "SQL (evidence: Acme)" in prompt
+    assert "Python (evidence:" not in prompt
+    assert "React (evidence:" not in prompt

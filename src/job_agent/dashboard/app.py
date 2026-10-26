@@ -9,14 +9,18 @@ backend reads ``.env`` exactly as the CLI does.
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import tempfile
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, model_validator
+import yaml
 
 from job_agent.apply.tracker import Status, upsert_job_state
 from job_agent.dashboard import service
 from job_agent.store import load_job_record, resolve_apply_url
+from job_agent.tailor.career_facts import CareerFacts
 
 _STATIC = Path(__file__).resolve().parent / "static"
 
@@ -160,6 +164,42 @@ def create_app(*, data_dir: Path = Path("data"),
         return service.jobs_view(data_dir / "last_search.json",
                                  data_dir / "applications.json",
                                  facts_path=facts_path, out_dir=out_dir)
+
+    @app.get("/api/profile")
+    def profile() -> dict:
+        from job_agent.tailor.career_facts import load_career_facts
+
+        if not facts_path.exists():
+            return {"configured": False, "profile": CareerFacts().model_dump(mode="json")}
+        try:
+            facts = load_career_facts(facts_path)
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return {"configured": facts.profile_configured(),
+                "profile": facts.model_dump(mode="json")}
+
+    @app.put("/api/profile")
+    def save_profile(req: CareerFacts) -> dict:
+        facts = CareerFacts.model_validate(req.model_dump())
+        facts_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=facts_path.parent,
+                prefix=f".{facts_path.name}.", suffix=".tmp", delete=False,
+            ) as stream:
+                temporary = stream.name
+                yaml.safe_dump(facts.model_dump(mode="json", exclude_defaults=True),
+                               stream, sort_keys=False, allow_unicode=True)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, facts_path)
+            temporary = None
+        finally:
+            if temporary:
+                Path(temporary).unlink(missing_ok=True)
+        return {"configured": facts.profile_configured(),
+                "profile": facts.model_dump(mode="json")}
 
     @app.post("/api/search")
     def run_search(req: SearchRequest) -> dict:

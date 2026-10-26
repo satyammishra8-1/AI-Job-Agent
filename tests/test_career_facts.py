@@ -29,7 +29,7 @@ def test_facts_are_frozen():
 
 def test_invalid_facts_raise(tmp_path):
     bad = tmp_path / "bad.yaml"
-    bad.write_text("name: x\nrole: y\n")  # no employers (min_length=1)
+    bad.write_text("career_status: astronaut\n")
     with pytest.raises(ValueError):
         load_career_facts(bad)
 

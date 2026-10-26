@@ -39,6 +39,10 @@ def save_search(scored: list[ScoredJob], boards: list[str], path: str | Path, *,
         job_id = str(s.job.id)
         rec = s.job.model_dump(mode="json")
         rec.update(board=board, score=s.score, verdict=s.verdict, reasons=list(s.reasons),
+                   missing_requirements=list(s.missing_requirements),
+                   eligibility=s.eligibility.model_dump(),
+                   supported_matches=list(s.supported_matches),
+                   supported_gaps=list(s.supported_gaps), decision=s.decision,
                    first_seen_this_scan=job_id in new_set)
         if first_seen and job_id in first_seen:
             rec["first_seen"] = first_seen[job_id]

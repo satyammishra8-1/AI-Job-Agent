@@ -171,7 +171,32 @@ def cmd_search(console: Console, args: argparse.Namespace) -> int:
         _print_ranked_table(console, [], args.limit)
         return 0
     console.print(f"[dim]Scoring {len(outcome.jobs)} job(s) with the LLM…[/dim]")
-    scored = score_jobs(outcome.jobs, settings, profile, method=args.method)
+    candidate = None
+    facts_path = settings.data_dir / "career_facts.yaml"
+    if facts_path.exists():
+        try:
+            candidate = load_career_facts(facts_path)
+        except (FileNotFoundError, ValueError) as exc:
+            console.print(f"[red]Invalid master profile: {exc}[/red]")
+            return 2
+    authorization = None
+    answer_path = settings.data_dir / "answer_bank.yaml"
+    if answer_path.exists():
+        try:
+            from job_agent.apply.answer_bank import load_answer_bank
+
+            bank = load_answer_bank(answer_path)
+            authorization = {
+                "authorized_countries": bank.authorized_countries,
+                "authorized_us": bank.authorized_us,
+                "requires_sponsorship": bank.requires_sponsorship,
+            }
+        except (FileNotFoundError, ValueError) as exc:
+            console.print(
+                "[yellow]Eligibility note:[/yellow] answer-bank authorization facts "
+                f"could not be loaded ({exc}); affected roles will need review.")
+    scored = score_jobs(outcome.jobs, settings, profile, method=args.method,
+                        candidate=candidate, authorization=authorization)
     saved = save_search(scored, outcome.boards, settings.data_dir / "last_search.json",
                         first_seen=outcome.first_seen, new_job_ids=outcome.new_job_ids,
                         baseline=outcome.baseline_scan,
@@ -315,6 +340,10 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
         facts = load_career_facts(args.facts)
     except (FileNotFoundError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
+        return 2
+
+    if not facts.name.strip() or not facts.employers:
+        console.print("[red]Resume tailoring requires your name and at least one evidenced experience/project entry in career_facts.yaml.[/red]")
         return 2
 
     record = load_job_record(settings.data_dir / "last_search.json", args.job)

@@ -137,6 +137,64 @@ def test_jobs_endpoint_exposes_verification_evidence_and_ranks_by_status(tmp_pat
     assert jobs[0]["verification"]["evidence"]["canonical_url"] == "https://acme.com/jobs/3"
 
 
+def test_profile_endpoint_reads_and_saves_the_existing_career_facts_yaml(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path))
+    initial = client.get("/api/profile").json()
+    assert initial["configured"] is False
+    assert initial["profile"]["name"] == ""
+
+    profile = {"career_status": "student", "preferred_locations": ["Bengaluru"],
+               "remote_preference": "remote", "skills_inventory": {"Languages": ["Python"]},
+               "skill_evidence": {"Python": ["Resume: Skills section"]},
+               "projects": [{"name": "Demo", "technologies": ["Python"],
+                             "evidence": ["GitHub: https://github.com/example/demo"]}]}
+    saved = client.put("/api/profile", json=profile)
+    assert saved.status_code == 200
+    assert saved.json()["configured"] is True
+    assert (tmp_path / "career_facts.yaml").exists()
+    loaded = client.get("/api/profile").json()["profile"]
+    assert loaded["career_status"] == "student"
+    assert loaded["projects"][0]["evidence"] == [
+        "GitHub: https://github.com/example/demo"]
+    invalid = client.put("/api/profile", json={"career_status": "made-up"})
+    assert invalid.status_code == 422
+
+
+def test_jobs_endpoint_exposes_eligibility_and_evidence_backed_fit(tmp_path):
+    path = tmp_path / "last_search.json"
+    path.write_text(json.dumps({"jobs": {"j": {
+        "id": "j", "title": "Software Intern", "company": "Acme",
+        "location": "India", "url": "https://example.com", "source": "greenhouse",
+        "score": 55, "verdict": "possible", "decision": "recommended",
+        "eligibility": {"status": "eligible", "reasons": ["Internship matches student status."]},
+        "supported_matches": ["Python — evidence: project X"],
+        "supported_gaps": ["AWS"],
+    }}}))
+    job = TestClient(create_app(data_dir=tmp_path)).get("/api/jobs").json()["jobs"][0]
+    assert job["eligibility"]["status"] == "eligible"
+    assert job["decision"] == "recommended"
+    assert job["supported_matches"] == ["Python — evidence: project X"]
+    assert job["supported_gaps"] == ["AWS"]
+
+
+def test_jobs_ranking_prefers_verified_and_eligible_before_higher_fit(tmp_path):
+    path = tmp_path / "last_search.json"
+    path.write_text(json.dumps({"jobs": {
+        "eligible": {"id": "eligible", "title": "Intern", "company": "A",
+                     "location": "India", "url": "https://a.example", "source": "ashby",
+                     "score": 55, "verdict": "possible",
+                     "verification": {"status": "verified"},
+                     "eligibility": {"status": "eligible", "reasons": []}},
+        "review": {"id": "review", "title": "Engineer", "company": "B",
+                    "location": "India", "url": "https://b.example", "source": "ashby",
+                    "score": 85, "verdict": "strong",
+                    "verification": {"status": "verified"},
+                    "eligibility": {"status": "review", "reasons": []}},
+    }}))
+    jobs = TestClient(create_app(data_dir=tmp_path)).get("/api/jobs").json()["jobs"]
+    assert [job["id"] for job in jobs] == ["eligible", "review"]
+
+
 def test_search_endpoint_runs_the_pipeline_and_returns_fresh_jobs(tmp_path):
     _seed_last_search(tmp_path / "last_search.json")
 

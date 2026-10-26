@@ -21,6 +21,14 @@ SourceName = Literal["greenhouse", "lever", "ashby", "smartrecruiters", "demo",
 # could not be parsed even after one retry (see scoring.py).
 Verdict = Literal["strong", "possible", "skip", "unscored"]
 VerificationStatus = Literal["verified", "needs_review", "suspicious"]
+EligibilityStatus = Literal["eligible", "review", "not_eligible"]
+MatchDecision = Literal["recommended", "review", "skip"]
+
+
+class EligibilityResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    status: EligibilityStatus = "review"
+    reasons: tuple[str, ...] = ()
 
 
 class VerificationSignal(BaseModel):
@@ -93,13 +101,19 @@ class ScoredJob(BaseModel):
     verdict: Verdict = "unscored"
     reasons: tuple[str, ...] = ()
     missing_requirements: tuple[str, ...] = ()
+    eligibility: EligibilityResult = Field(default_factory=EligibilityResult)
+    supported_matches: tuple[str, ...] = ()
+    supported_gaps: tuple[str, ...] = ()
+    decision: MatchDecision = "review"
 
     @property
-    def sort_key(self) -> tuple[int, int, int]:
-        """Prefer verified opportunities, then preserve fit verdict/score order."""
+    def sort_key(self) -> tuple[int, int, int, int]:
+        """Prefer verified, eligible opportunities, then fit verdict and score."""
         verification_rank = {
             "verified": 2, "needs_review": 1, "suspicious": 0,
         }.get(self.job.verification.status if self.job.verification else None, 1)
         verdict_rank = {"strong": 3, "possible": 2, "skip": 1, "unscored": 0}
-        return (verification_rank, verdict_rank[self.verdict],
+        eligibility_rank = {"eligible": 2, "review": 1, "not_eligible": 0}
+        return (verification_rank, eligibility_rank[self.eligibility.status],
+                verdict_rank[self.verdict],
                 self.score if self.score is not None else -1)

@@ -197,6 +197,8 @@ def resolve_contact(facts: CareerFacts, bank: AnswerBank) -> Contact:
     """
     linkedin = bank.linkedin or _link_matching(facts.links, "linkedin.com")
     github = bank.github or _link_matching(facts.links, "github.com")
+    if not facts.name.strip() or not facts.employers:
+        raise ValueError("Assisted application requires a real name and at least one evidenced experience entry in career_facts.yaml.")
     recent = facts.employers[0]
     school, degree = _split_education(facts.education[0]) if facts.education else ("", "")
     return Contact(

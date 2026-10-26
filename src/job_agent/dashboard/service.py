@@ -22,6 +22,7 @@ from job_agent.json_store import read_json
 
 _VERDICT_RANK = {"strong": 3, "possible": 2, "skip": 1, "unscored": 0}
 _VERIFICATION_RANK = {"verified": 2, "needs_review": 1, "suspicious": 0}
+_ELIGIBILITY_RANK = {"eligible": 2, "review": 1, "not_eligible": 0}
 
 
 # --- section 1: application pipeline -------------------------------------------------
@@ -147,6 +148,11 @@ def jobs_view(last_search_path: str | Path,
         except (FileNotFoundError, ValueError):
             pass
     for job in jobs:
+        job.setdefault("eligibility", {"status": "review", "reasons": [
+            "Eligibility was not assessed for this saved result."]})
+        job.setdefault("supported_matches", [])
+        job.setdefault("supported_gaps", [])
+        job.setdefault("decision", "review")
         if not isinstance(job.get("verification"), dict):
             job["verification"] = {
                 "status": "needs_review",
@@ -161,6 +167,8 @@ def jobs_view(last_search_path: str | Path,
         )
     jobs.sort(key=lambda j: (_VERIFICATION_RANK.get(
                                  (j.get("verification") or {}).get("status"), 1),
+                             _ELIGIBILITY_RANK.get(
+                                 (j.get("eligibility") or {}).get("status"), 1),
                              _VERDICT_RANK.get(j.get("verdict"), 0),
                              j.get("score") if j.get("score") is not None else -1),
               reverse=True)
@@ -193,7 +201,7 @@ def _tailored_resume_path(record: dict, *, facts, out_dir: str | Path) -> Path |
     from job_agent.cli import _resume_filename
 
     root = Path(out_dir).resolve()
-    filename = _resume_filename(facts.name.split()[0],
+    filename = _resume_filename((facts.name or "candidate").split()[0],
                                 record.get("title", ""), record.get("company", ""))
     pdf = (root / f"{filename}.pdf").resolve()
     if pdf.parent != root or not pdf.exists():
@@ -260,7 +268,7 @@ def run_tailor_cli(job_id: str, *, data_dir: Path, facts_path: Path,
         record = load_job_record(data_dir / "last_search.json", job_id) or {}
         try:
             facts = load_career_facts(facts_path)
-            filename = _resume_filename(facts.name.split()[0],
+            filename = _resume_filename((facts.name or "candidate").split()[0],
                                         record.get("title", ""), record.get("company", ""))
             pdf = Path(out_dir) / f"{filename}.pdf"
             if pdf.exists():
