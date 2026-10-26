@@ -89,6 +89,10 @@ def evidenced_profile_skills(facts: CareerFacts) -> dict[str, tuple[str, ...]]:
         for skill in skills:
             if skill.lower() in evidenced:
                 result.setdefault(skill.lower(), evidenced[skill.lower()])
+    for cert in facts.certifications:
+        for skill in SKILL_TERMS:
+            if _has(cert.name, skill):
+                evidenced.setdefault(skill.lower(), (skill, f"Certification: {cert.name}"))
     result.update(evidenced)
     return result
 

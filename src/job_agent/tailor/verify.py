@@ -345,6 +345,39 @@ def verify_no_drift(result: TailorResult, facts: CareerFacts) -> VerifyReport:
         if not any(a in _norm(cert) or _norm(cert) in a for a in allowed_certs):
             problems.append(f"Uncredentialed certification printed on resume: {cert!r}")
 
+    # 2b. Curated technology/skill claims must occur in the profile. This also
+    # prevents a required JD keyword from silently becoming a candidate claim.
+    from job_agent.matching import SKILL_TERMS, evidenced_profile_skills
+    allowed_skills = {_norm(display) for display, _source
+                      in evidenced_profile_skills(facts).values()}
+    face_low = result.resume_text.lower()
+    for skill in SKILL_TERMS:
+        pattern = r"(?<![a-z0-9])" + re.escape(skill.lower()) + r"(?![a-z0-9])"
+        if re.search(pattern, face_low) and _norm(skill) not in allowed_skills:
+            problems.append(f"Unsupported skill/technology printed on resume: {skill!r}")
+
+    # 2c. Education lines must be backed by a stored education fact. The model
+    # may split one source line into degree, institution, and year lines.
+    edu_facts = [*facts.education,
+                 *(f"{e.degree} {e.field} {e.college} {e.graduation_year or ''} {e.cgpa or ''}"
+                   for e in facts.education_details)]
+    in_education = False
+    for raw_line in result.resume_text.splitlines():
+        heading = _canonical_heading(strip_markdown(raw_line).strip())
+        if heading == "Education":
+            in_education = True
+            continue
+        if in_education and heading:
+            break
+        line = strip_markdown(raw_line).strip().lstrip("-•* ").strip()
+        if in_education and line:
+            normalized = _norm(line)
+            if not edu_facts or not any(
+                normalized in _norm(fact) or _norm(fact) in normalized
+                for fact in edu_facts if _norm(fact)
+            ):
+                problems.append(f"Unsupported education printed on resume: {line!r}")
+
     # 3. Metrics: every metric number on the face must be a BANKED real metric.
     #    ("Anything not listed stays out" — only the confirmed real_metrics count;
     #    a value present only in a source bullet is not a licence to cite it.)

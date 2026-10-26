@@ -427,7 +427,12 @@ def test_resume_endpoint_serves_the_tailored_pdf(tmp_path):
     out = tmp_path / "output"
     out.mkdir(parents=True)
     # the same filename the tailor pipeline produces for this job
-    (out / "Jordan_ML_Engineer_Plaid.pdf").write_bytes(b"%PDF-1.4 fake")
+    (out / "Jordan_ML_Engineer_Plaid_j1.pdf").write_bytes(b"%PDF-1.4 fake")
+    (out / "tailoring_status.json").write_text(json.dumps({"j1": {
+        "job_id": "j1", "status": "READY", "filename": "Jordan_ML_Engineer_Plaid_j1",
+        "ats": {"readiness": 75, "total": 4, "matched": 3, "partial": 0, "missing": 1,
+                "keywords": []},
+    }}))
     (tmp_path / "career_facts.yaml").write_text(
         "name: Jordan Rivers\nemail: j@x.com\nphone: '1'\nrole: MLE\n"
         "employers:\n  - company: Acme\n    title: DE\n    duration: 2y\n"
@@ -437,6 +442,48 @@ def test_resume_endpoint_serves_the_tailored_pdf(tmp_path):
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
     assert resp.content.startswith(b"%PDF")
+
+
+def test_jobs_endpoint_reports_deterministic_ats_and_truth_review_status(tmp_path):
+    _seed_last_search(tmp_path / "last_search.json")
+    facts = tmp_path / "career_facts.yaml"
+    facts.write_text('skill_evidence:\n  Python: ["Project: demo"]\n')
+    out = tmp_path / "output"
+    out.mkdir()
+    (out / "tailoring_status.json").write_text(json.dumps({"j1": {
+        "job_id": "j1", "status": "NEEDS_REVIEW", "reason": "Unsupported claim",
+        "filename": "Jordan_ML_Engineer_Plaid_j1",
+        "ats": {"readiness": 0, "total": 1, "matched": 0, "partial": 0,
+                "missing": 1, "keywords": []},
+    }}))
+    jobs = TestClient(create_app(data_dir=tmp_path, facts_path=facts, out_dir=out))
+    j1 = next(j for j in jobs.get("/api/jobs").json()["jobs"] if j["id"] == "j1")
+    assert j1["resume_status"] == "NEEDS_REVIEW"
+    assert j1["tailored_resume_ready"] is False
+    assert j1["tailoring_reason"] == "Unsupported claim"
+    assert j1["ats_readiness"]["readiness"] is None  # fixture JD has no curated keywords
+    assert j1["tailoring_ats"]["readiness"] == 0
+
+
+def test_apply_cannot_select_a_resume_whose_validation_needs_review(tmp_path):
+    from job_agent.cli import _find_tailored_resume, _job_resume_filename
+    from job_agent.tailor.career_facts import CareerFacts
+
+    facts = CareerFacts(name="Jordan Rivers")
+    record = {"id": "j1", "title": "ML Engineer", "company": "Plaid"}
+    out = tmp_path / "output"
+    out.mkdir()
+    filename = _job_resume_filename("Jordan", "ML Engineer", "Plaid", "j1")
+    pdf = out / f"{filename}.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
+    (out / "tailoring_status.json").write_text(json.dumps({"j1": {
+        "job_id": "j1", "status": "NEEDS_REVIEW", "filename": filename,
+    }}))
+    assert _find_tailored_resume(None, out, facts, record) is None
+    (out / "tailoring_status.json").write_text(json.dumps({"j1": {
+        "job_id": "j1", "status": "READY", "filename": filename,
+    }}))
+    assert _find_tailored_resume(None, out, facts, record) == pdf
 
 
 def test_resume_endpoint_404s_for_unknown_job_or_missing_pdf(tmp_path):

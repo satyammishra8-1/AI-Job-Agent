@@ -61,6 +61,27 @@ def test_uncredentialed_certification_is_rejected():
         verify_no_drift(_mutated(mutated), FACTS)
 
 
+def test_unsupported_jd_skill_is_rejected_even_when_the_jd_requests_it():
+    mutated = BASE.resume_text.replace("Python", "Kubernetes")
+    with pytest.raises(DriftError, match="Unsupported skill/technology"):
+        verify_no_drift(_mutated(mutated), FACTS)
+
+
+def test_profile_listed_skill_without_evidence_cannot_be_added_to_resume():
+    facts = FACTS.model_copy(update={
+        "skills_inventory": {**FACTS.skills_inventory, "Other": ("React",)},
+    })
+    mutated = BASE.resume_text.replace("Python, SQL", "Python, SQL, React")
+    with pytest.raises(DriftError, match="Unsupported skill/technology.*React"):
+        verify_no_drift(_mutated(mutated), facts)
+
+
+def test_fabricated_education_is_rejected():
+    mutated = BASE.resume_text.replace("State University", "Fake University")
+    with pytest.raises(DriftError, match="Unsupported education"):
+        verify_no_drift(_mutated(mutated), FACTS)
+
+
 def test_invented_metric_is_rejected():
     mutated = BASE.resume_text.replace("Reduced pipeline runtime by 30%",
                                        "Reduced infrastructure cost by 73%")

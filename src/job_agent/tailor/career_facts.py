@@ -99,10 +99,16 @@ class CareerFacts(BaseModel):
         return {_norm(c.name) for c in self.certifications}
 
     def real_skills(self) -> set[str]:
-        """Every real skill (global inventory + per-employer environments)."""
+        """Skills supported by a listed role or evidence-backed profile item."""
         skills = {_norm(s) for group in self.skills_inventory.values() for s in group}
         for e in self.employers:
             skills |= {_norm(s) for s in e.real_skills}
+        for project in self.projects:
+            if project.evidence:
+                skills |= {_norm(s) for s in project.technologies}
+        skills |= {_norm(s) for s, sources in self.skill_evidence.items() if sources}
+        # A named technical credential supports the technology stated in its name.
+        skills |= {_norm(token) for cert in self.certifications for token in cert.name.split()}
         return skills
 
     def profile_configured(self) -> bool:

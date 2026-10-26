@@ -114,6 +114,22 @@ def build_facts_block(facts: CareerFacts) -> str:
     for category, skills in facts.skills_inventory.items():
         lines.append(f"- {category}: " + "; ".join(skills))
 
+    lines.append("\nEvidence attached to skills (authoritative for ATS matching):")
+    for skill, sources in facts.skill_evidence.items():
+        if sources:
+            lines.append(f"- {skill}: " + "; ".join(sources))
+    for project in facts.projects:
+        if project.evidence:
+            lines.append(f"\nVerified project: {project.name}")
+            if project.role:
+                lines.append(f"Role: {project.role}")
+            if project.description:
+                lines.append(f"Description: {project.description}")
+            lines.append("Technologies: " + "; ".join(project.technologies))
+            lines.append("Evidence: " + "; ".join(project.evidence))
+    lines.append("Skills listed without evidence are not verified matches. Do not add a missing or "
+                 "unverified skill as a claim; include it only as a gap in NOTES.")
+
     lines.append("\nEmployers (company / title / duration are FIXED — never change/add/remove):")
     for e in facts.employers:
         lines.append(f"\n>>> {e.company} | {e.title} | {e.location} | {e.duration}")

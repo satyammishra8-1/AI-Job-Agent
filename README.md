@@ -186,7 +186,10 @@ remain `review`. A score of 50 or more can be recommended when eligibility is
 clear; 40-49 remains for review, and below 40 is normally skipped. Genuine
 verification remains ahead of fit in ranking, and skill explanations are
 derived from the job text and the profile evidence rather than generated as
-unsupported facts. ATS readiness remains unassessed.
+unsupported facts. The dashboard also shows deterministic ATS readiness from
+the curated job-skill vocabulary: evidence-backed keywords count fully,
+profile-listed keywords without evidence count partially, and missing keywords
+count zero. This is keyword coverage, not a commercial ATS score.
 
 ### Growing the board list (`discover`)
 
@@ -296,6 +299,10 @@ backend the Chrome extension talks to.
 tracked state joined in, and drives the same CLI code paths:
 
 - **Search / Tailor / Resume** buttons run the real pipeline and show the output.
+- **ATS readiness and resume status.** Job cards show matched, partial, and
+  missing curated keywords; job-specific resumes are marked ready only after the
+  existing truthfulness and PDF checks pass. Failed checks remain `NEEDS_REVIEW`
+  and cannot be selected by the application flow.
 - **Scan metadata + new-job tracking.** The jobs-table header shows the last
   scan (as a relative time), total jobs, sources queried, and how many jobs
   were first seen in that scan; rows first seen in the current scan carry a

@@ -147,6 +147,10 @@ def jobs_view(last_search_path: str | Path,
             facts = load_career_facts(facts_path)
         except (FileNotFoundError, ValueError):
             pass
+    tailoring_records = read_json(Path(out_dir) / "tailoring_status.json", {}) \
+        if out_dir is not None else {}
+    if not isinstance(tailoring_records, dict):
+        tailoring_records = {}
     for job in jobs:
         job.setdefault("eligibility", {"status": "review", "reasons": [
             "Eligibility was not assessed for this saved result."]})
@@ -161,10 +165,29 @@ def jobs_view(last_search_path: str | Path,
                              "employer_domain": None, "application_domain": None},
                 "reason": "Verification was not recorded for this saved search; review the posting and employer site.",
             }
-        job["tailored_resume_ready"] = (
-            _tailored_resume_path(job, facts=facts, out_dir=out_dir) is not None
-            if facts is not None and out_dir is not None else None
-        )
+        if facts is not None and out_dir is not None:
+            from job_agent.ats import ats_readiness
+            from job_agent.models import Job
+
+            job["ats_readiness"] = ats_readiness(Job.model_validate(job), facts)
+            saved_status = tailoring_records.get(str(job.get("id")), {})
+            resume_path = _tailored_resume_path(job, facts=facts, out_dir=out_dir)
+            valid_record = (isinstance(saved_status, dict)
+                            and saved_status.get("job_id") == str(job.get("id")))
+            job["resume_status"] = (
+                "READY" if valid_record and saved_status.get("status") == "READY"
+                and resume_path is not None else
+                "NEEDS_REVIEW" if valid_record and saved_status.get("status") == "NEEDS_REVIEW"
+                else "NOT_PREPARED")
+            job["tailored_resume_ready"] = job["resume_status"] == "READY"
+            job["tailoring_reason"] = saved_status.get("reason") if valid_record else None
+            job["tailoring_summary"] = saved_status.get("summary", {}) if valid_record else {}
+            if valid_record and isinstance(saved_status.get("ats"), dict):
+                job["tailoring_ats"] = saved_status["ats"]
+        else:
+            job["ats_readiness"] = None
+            job["resume_status"] = "UNAVAILABLE"
+            job["tailored_resume_ready"] = None
     jobs.sort(key=lambda j: (_VERIFICATION_RANK.get(
                                  (j.get("verification") or {}).get("status"), 1),
                              _ELIGIBILITY_RANK.get(
@@ -198,11 +221,12 @@ def jobs_view(last_search_path: str | Path,
 
 def _tailored_resume_path(record: dict, *, facts, out_dir: str | Path) -> Path | None:
     """Resolve a resume for the given record using the safe, shared filename rule."""
-    from job_agent.cli import _resume_filename
+    from job_agent.cli import _job_resume_filename
 
     root = Path(out_dir).resolve()
-    filename = _resume_filename((facts.name or "candidate").split()[0],
-                                record.get("title", ""), record.get("company", ""))
+    filename = _job_resume_filename((facts.name or "candidate").split()[0],
+                                    record.get("title", ""), record.get("company", ""),
+                                    str(record.get("id", "")))
     pdf = (root / f"{filename}.pdf").resolve()
     if pdf.parent != root or not pdf.exists():
         return None
@@ -257,7 +281,7 @@ def open_in_chrome(url: str, *, _run=None, _fallback=None) -> str:
 def run_tailor_cli(job_id: str, *, data_dir: Path, facts_path: Path,
                    out_dir: Path) -> dict:
     """Tailor one job via the CLI's own command function; report the PDF path."""
-    from job_agent.cli import _resume_filename, cmd_tailor
+    from job_agent.cli import _job_resume_filename, cmd_tailor
     from job_agent.store import load_job_record
     from job_agent.tailor.career_facts import load_career_facts
 
@@ -268,8 +292,9 @@ def run_tailor_cli(job_id: str, *, data_dir: Path, facts_path: Path,
         record = load_job_record(data_dir / "last_search.json", job_id) or {}
         try:
             facts = load_career_facts(facts_path)
-            filename = _resume_filename((facts.name or "candidate").split()[0],
-                                        record.get("title", ""), record.get("company", ""))
+            filename = _job_resume_filename((facts.name or "candidate").split()[0],
+                                            record.get("title", ""),
+                                            record.get("company", ""), job_id)
             pdf = Path(out_dir) / f"{filename}.pdf"
             if pdf.exists():
                 result["pdf"] = str(pdf)
@@ -282,11 +307,16 @@ def resume_pdf_path(record: dict, *, facts_path: Path, out_dir: Path) -> Path | 
     """The tailored PDF for this job, or None. NEVER escapes ``out_dir``:
     the filename is derived (slugged) from the stored record — no user path —
     and the resolved location is verified to sit inside the output directory."""
+    from job_agent.json_store import read_json
     from job_agent.tailor.career_facts import load_career_facts
 
     try:
         facts = load_career_facts(facts_path)
     except (FileNotFoundError, ValueError):
+        return None
+    statuses = read_json(Path(out_dir) / "tailoring_status.json", {})
+    saved = statuses.get(str(record.get("id")), {}) if isinstance(statuses, dict) else {}
+    if not isinstance(saved, dict) or saved.get("status") != "READY":
         return None
     return _tailored_resume_path(record, facts=facts, out_dir=out_dir)
 

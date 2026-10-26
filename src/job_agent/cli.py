@@ -80,6 +80,27 @@ def _resume_filename(first_name: str, role: str, company: str) -> str:
     return "_".join(p for p in (_slug(first_name), _slug(role_main), _slug(company)) if p)
 
 
+def _job_resume_filename(first_name: str, role: str, company: str, job_id: str) -> str:
+    """Give every job its own artifact name, even for duplicate role/company pairs."""
+    return f"{_resume_filename(first_name, role, company)}_{_slug(job_id)}"
+
+
+def _save_tailoring_status(out_dir: Path, job_id: str, *, status: str,
+                           filename: str, ats: dict | None = None,
+                           reason: str | None = None,
+                           summary: dict | None = None) -> None:
+    from job_agent.json_store import read_json, write_json_atomic
+
+    path = out_dir / "tailoring_status.json"
+    data = read_json(path, {})
+    if not isinstance(data, dict):
+        data = {}
+    data[str(job_id)] = {"job_id": str(job_id), "status": status,
+                         "filename": filename, "ats": ats, "reason": reason,
+                         "summary": summary}
+    write_json_atomic(path, data)
+
+
 # --------------------------------------------------------------------------- #
 # search
 # --------------------------------------------------------------------------- #
@@ -362,7 +383,27 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
             console.print("[yellow]warning:[/yellow] could not fetch a JD; tailoring on title only.")
 
     console.print(f"[bold cyan]job-agent tailor[/bold cyan] — tailoring with {TAILOR_MODEL}\n")
-    filename = _resume_filename(facts.name.split()[0], job.title, job.company)
+    from job_agent.ats import ats_readiness
+    from job_agent.tailor.verify import _output_employer_triples
+
+    filename = _job_resume_filename(facts.name.split()[0], job.title, job.company, job.id)
+    ats = ats_readiness(job.model_copy(update={"description": jd}), facts)
+
+    def tailoring_summary(face: str) -> dict:
+        import re
+
+        emphasized = [item["keyword"] for item in ats["keywords"]
+                      if item["status"] == "MATCHED"
+                      and re.search(r"(?<![a-z0-9])" + re.escape(item["keyword"].lower())
+                                    + r"(?![a-z0-9])", face.lower())]
+        output_order = [company for company, _, _ in _output_employer_triples(face)]
+        source_order = [employer.company for employer in facts.employers]
+        reordered = [company for index, company in enumerate(output_order)
+                     if company in source_order and source_order.index(company) != index]
+        not_added = [item["keyword"] for item in ats["keywords"]
+                     if item["status"] != "MATCHED"]
+        return {"emphasized": emphasized, "reordered": reordered,
+                "not_added": not_added}
 
     # Tailor, then gate. Format issues, unsupported scope qualifiers, and an
     # omitted employer get ONE regeneration with the gate's message as a
@@ -376,17 +417,27 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
             checked = _gate(facts, result, jd)
             break
         except DriftError as exc:  # fabrication — never retry, fail loudly
+            _save_tailoring_status(out_dir, job.id, status="NEEDS_REVIEW",
+                                   filename=filename, ats=ats, reason=str(exc))
             console.print(f"[red]No-drift gate FAILED — refusing to write PDF:[/red]\n{exc}")
             return 1
         except (FormatError, ScopeDriftError, MissingEmployerError) as exc:
             if attempt == 2:
+                _save_tailoring_status(out_dir, job.id, status="NEEDS_REVIEW",
+                                       filename=filename, ats=ats, reason=str(exc))
                 console.print(f"[red]Gate FAILED after retry — refusing to write PDF:[/red]\n{exc}")
                 return 1
             console.print(f"[yellow]Gate issue, retrying once:[/yellow] {exc}")
             correction = (f"{_CAP_CORRECTION}\nYour previous draft was REJECTED by an "
                           f"automated check:\n{exc}\nRegenerate and fix exactly this.")
     try:
-        return _write(console, checked, out_dir, filename, facts)
+        code = _write(console, checked, out_dir, filename, facts)
+        _save_tailoring_status(out_dir, job.id,
+                               status="READY" if code == 0 else "NEEDS_REVIEW",
+                               filename=filename, ats=ats,
+                               reason=None if code == 0 else "Rendered resume failed PDF validation.",
+                               summary=tailoring_summary(checked.resume_text))
+        return code
     except ScopeDriftError as exc:
         # An unbanked scale qualifier survived to the RENDERED artifact —
         # regenerate once with the violation as a correction, then give up loudly.
@@ -396,8 +447,16 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
                                                  "Remove the unsupported scale wording.")
         try:
             checked = _gate(facts, result, jd)
-            return _write(console, checked, out_dir, filename, facts)
+            code = _write(console, checked, out_dir, filename, facts)
+            _save_tailoring_status(out_dir, job.id,
+                                   status="READY" if code == 0 else "NEEDS_REVIEW",
+                                   filename=filename, ats=ats,
+                                   reason=None if code == 0 else "Rendered resume failed PDF validation.",
+                                   summary=tailoring_summary(checked.resume_text))
+            return code
         except (DriftError, MissingEmployerError, ScopeDriftError, FormatError) as exc2:
+            _save_tailoring_status(out_dir, job.id, status="NEEDS_REVIEW",
+                                   filename=filename, ats=ats, reason=str(exc2))
             console.print(f"[red]Gate FAILED after artifact retry — refusing to write PDF:[/red]\n{exc2}")
             return 1
 
@@ -411,9 +470,15 @@ def _find_tailored_resume(explicit: str | None, tailor_out: Path,
     """Locate the tailored PDF for this job, or None (review will then pause)."""
     if explicit:
         return Path(explicit)
-    fname = _resume_filename(facts.name.split()[0], record.get("title", ""),
-                             record.get("company", ""))
+    from job_agent.json_store import read_json
+
+    fname = _job_resume_filename(facts.name.split()[0], record.get("title", ""),
+                                 record.get("company", ""), str(record.get("id", "")))
     candidate = tailor_out / f"{fname}.pdf"
+    statuses = read_json(tailor_out / "tailoring_status.json", {})
+    saved = statuses.get(str(record.get("id", "")), {}) if isinstance(statuses, dict) else {}
+    if not isinstance(saved, dict) or saved.get("status") != "READY":
+        return None
     return candidate if candidate.exists() else None
 
 

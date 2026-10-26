@@ -633,8 +633,28 @@ function renderJobs() {
     const missingHtml = missing.length
       ? '<div class="match-copy"><b>Potential gaps</b><div class="skill-list missing-list">' +
         missing.map((x) => '<span class="skill-chip">' + esc(x) + '</span>').join("") + '</div></div>' : "";
-    const resumeStatus = j.tailored_resume_ready === true ? "Tailored PDF ready"
-      : j.tailored_resume_ready === false ? "Resume not tailored" : "Resume status unavailable";
+    const resumeStatus = j.resume_status === "READY" ? "Ready"
+      : j.resume_status === "NEEDS_REVIEW" ? "Needs review"
+        : j.resume_status === "NOT_PREPARED" ? "Not prepared" : "Status unavailable";
+    const ats = j.tailoring_ats || j.ats_readiness;
+    const atsText = ats && ats.readiness !== null
+      ? 'Readiness <b>' + esc(ats.readiness) + '%</b> · ' + esc(ats.matched) + '/' +
+        esc(ats.total) + ' matched' + (ats.partial ? ' · ' + esc(ats.partial) + ' partial' : '')
+      : 'Readiness unavailable';
+    const tailoringSummary = j.tailoring_summary || {};
+    const notAdded = (tailoringSummary.not_added ||
+      ((ats?.keywords || []).filter((k) => k.status !== "MATCHED").map((k) => k.keyword)));
+    const atsDetails = ats && ats.total
+      ? '<div class="match-copy"><b>ATS keywords</b> ' + atsText +
+        '<div class="skill-list">' + (ats.keywords || []).map((k) =>
+          '<span class="skill-chip' + (k.status === "MISSING" ? ' missing' : '') + '">' +
+          esc(k.keyword) + ' · ' + esc(k.status.toLowerCase()) + '</span>').join("") + '</div>' +
+        (tailoringSummary.emphasized?.length ? '<p><b>Emphasized:</b> ' +
+          tailoringSummary.emphasized.map(esc).join(", ") + '</p>' : '') +
+        (tailoringSummary.reordered?.length ? '<p><b>Reordered:</b> ' +
+          tailoringSummary.reordered.map(esc).join(", ") + '</p>' : '') +
+        (notAdded.length ? '<p><b>Not added:</b> ' + notAdded.map(esc).join(", ") +
+          '. No evidence in your profile.</p>' : '') + '</div>' : '';
     const verification = j.verification || {
       status: "needs_review", reason: "Verification was not recorded for this saved search; review the posting and employer site.",
       evidence: {}, signals: []};
@@ -653,8 +673,9 @@ function renderJobs() {
       '<span class="job-signal"><b>Eligibility</b> ' + esc(eligibility.status || "review") +
       (eligibilityText ? ' · ' + esc(eligibilityText) : '') + '</span>' +
       '<span class="job-signal"><b>Decision</b> ' + esc(j.decision || "review") + '</span>' +
-      '<span class="job-signal"><b>ATS</b> Readiness not assessed</span>' +
-      '<span class="job-signal"><b>Resume</b> ' + esc(resumeStatus) + '</span></div>';
+      '<span class="job-signal" title="Deterministic curated-keyword coverage, not a commercial ATS score; matched=1, partial=0.5, missing=0"><b>ATS Readiness</b> ' + atsText + '</span>' +
+      '<span class="job-signal"><b>Resume</b> ' + esc(resumeStatus) +
+      (j.tailoring_reason ? ' · ' + esc(j.tailoring_reason) : '') + '</span></div>';
     const nextAction = t?.next_action ||
       (j.tailored_resume_ready ? "Review your tailored resume before applying"
         : "Review hard requirements, then tailor your resume");
@@ -672,12 +693,14 @@ function renderJobs() {
       '<span><i class="meta-dot"></i>' + esc(j.source || "Source unavailable") + '</span>' +
       (posted ? '<span><i class="meta-dot"></i>' + esc(posted) + '</span>' : '') + '</div>' +
       '<div class="match-copy"><b>' + esc(strength) + '</b>' + pill(verdict) +
-      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml + verificationHtml + signals +
+      (t ? ' ' + followFlag(t) : '') + '</div>' + matchHtml + missingHtml + atsDetails + verificationHtml + signals +
       '<div class="app-next"><b>Next action</b> · ' + esc(nextAction) + '</div>' +
       '<div class="job-actions">' + view +
       '<button class="primary" data-apply="' + esc(j.id) + '" title="Open this job in your own browser; you review and submit">Apply</button>' +
       '<button data-mark="' + esc(j.id) + '">' + (t?.status === "applied" ? "Undo applied" : "Mark applied") + '</button>' +
-      '<button data-tailor="' + esc(j.id) + '">Tailor resume</button>' +
+      '<button data-tailor="' + esc(j.id) + '">' +
+        (j.resume_status === "READY" ? "Review resume" :
+         j.resume_status === "NEEDS_REVIEW" ? "Resume needs review" : "Prepare resume") + '</button>' +
       '<button class="ghost" data-resume="' + esc(j.id) + '" data-title="' + esc(j.company + " ? " + j.title) + '">Resume</button>' +
       '<button class="ghost" data-edit="' + esc(j.id) + '" title="Add notes or follow-up">Notes</button>' +
       '<span class="inline-out" data-out="' + esc(j.id) + '"></span></div>' +
