@@ -51,7 +51,7 @@ You click the field, pick that file, done.
 
 ### Essay drafts (never entered unreviewed)
 
-With `ANTHROPIC_API_KEY` configured in the backend's `.env`, free-text
+With `GEMINI_API_KEY` configured in the backend's `.env`, free-text
 questions ("describe a project…") are drafted by the **existing** screening
 drafter — grounded in your career facts and the page text, with the same
 honesty rules as the CLI: "why do you want to work at X" comes back marked
@@ -132,13 +132,13 @@ Backend running, extension loaded:
       claimed. A widget that doesn't take the click reports "clicked … but the
       form didn't take it".
 - [ ] **Why no draft**: with drafting off (no key), the popup's "Drafts to
-      review" group says exactly why ("no ANTHROPIC_API_KEY loaded in the
+      review" group says exactly why ("no GEMINI_API_KEY loaded in the
       backend…") instead of silently showing nothing.
 - [ ] **Resume guidance**: on a form with a resume field, the popup shows
       "Attach your resume" with your tailored PDF's name/path; "Show me the
       field" scrolls to and highlights the input; clicking it yourself opens
       the file chooser. The extension never attaches the file itself.
-- [ ] **Essay drafts** (backend has `ANTHROPIC_API_KEY`): on a form with a
+- [ ] **Essay drafts** (backend has `GEMINI_API_KEY`): on a form with a
       free-text question, the popup shows "Drafts to review" with an editable
       draft; the form field on the page is EMPTY until you click "Put it in
       the form"; the inserted text is exactly what's in the box (edits

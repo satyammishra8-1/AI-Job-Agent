@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from job_agent.config import SearchProfile, SourceRef
+from job_agent.config import DEFAULT_MODEL, SearchProfile, SourceRef
+
+
+def test_default_model_is_gemini_flash_lite():
+    assert DEFAULT_MODEL == "gemini-3.1-flash-lite"
 
 
 def _profile(**overrides) -> SearchProfile:

@@ -20,14 +20,14 @@ JOB = Job(id="1", title="Data Engineer", company="Acme", location="Remote",
           description="Build pipelines.")
 
 
-class FakeMessages:
+class FakeModels:
     """Returns queued responses (or raises queued exceptions) per create()."""
 
     def __init__(self, responses):
         self.responses = list(responses)
         self.calls = 0
 
-    def create(self, **kwargs):
+    def generate_content(self, **kwargs):
         self.calls += 1
         item = self.responses.pop(0)
         if isinstance(item, Exception):
@@ -37,17 +37,16 @@ class FakeMessages:
 
 class FakeClient:
     def __init__(self, responses):
-        self.messages = FakeMessages(responses)
+        self.models = FakeModels(responses)
 
 
 def text_response(payload: str):
-    return SimpleNamespace(stop_reason="end_turn",
-                           content=[SimpleNamespace(type="text", text=payload)])
+    return SimpleNamespace(text=payload, function_calls=[])
 
 
 def tool_response(data: dict):
-    return SimpleNamespace(stop_reason="tool_use",
-                           content=[SimpleNamespace(type="tool_use", name="record_fit", input=data)])
+    return SimpleNamespace(text=None, function_calls=[
+        SimpleNamespace(name="record_fit", args=data)])
 
 
 VALID = json.dumps({"score": 82, "verdict": "strong",
@@ -73,14 +72,14 @@ def test_score_is_clamped_to_0_100():
 def test_retries_once_then_succeeds():
     client = FakeClient([text_response("not json at all"), text_response(VALID)])
     result = score_one(client, "m", JOB, PROFILE)
-    assert client.messages.calls == 2
+    assert client.models.calls == 2
     assert result.verdict == "strong"
 
 
 def test_unscored_after_two_failures():
     client = FakeClient([text_response("garbage"), text_response("still garbage")])
     result = score_one(client, "m", JOB, PROFILE)
-    assert client.messages.calls == 2
+    assert client.models.calls == 2
     assert result.verdict == "unscored"
     assert result.score is None
     assert result.job == JOB  # the job is preserved, not dropped
@@ -95,7 +94,7 @@ def test_tool_use_method_reads_tool_input():
 
 
 def test_score_jobs_uses_injected_client():
-    settings = Settings(anthropic_api_key="x", model="m")
+    settings = Settings(gemini_api_key="x", model="m")
     client = FakeClient([text_response(VALID), text_response(VALID)])
     results = score_jobs([JOB, JOB], settings, PROFILE, client=client)
     assert len(results) == 2

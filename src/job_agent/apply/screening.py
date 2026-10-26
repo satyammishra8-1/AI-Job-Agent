@@ -6,7 +6,7 @@ unfilled field is routed into one of three buckets:
 * **factual** — already resolved deterministically by ``filler.py`` when the
   fact exists; an unfilled factual field stays flagged (never guessed, no LLM).
 * **free_text** — open questions ("why us?", "describe a project", cover
-  letter): a Haiku draft, grounded ONLY in career facts + answer bank + this
+  letter): a Gemini draft, grounded ONLY in career facts + answer bank + this
   job's JD, then run through a no-fabrication gate. The draft goes to the
   review gate tagged ``[AI-DRAFT]`` — it is never submitted unreviewed.
 * **consent** — legal/consent/EEO/demographic: untouched here; the filler
@@ -355,19 +355,18 @@ def make_drafter(generate: Callable[[str], str], facts: CareerFacts, bank: Answe
 
 
 def make_llm_generate(settings) -> Callable[[str], str]:
-    """The real prompt->text callable (same Haiku model/client style as scoring)."""
-    import anthropic  # lazy, like scoring: importing this module needs no key
+    """The real prompt->text callable (same Gemini client/model as scoring)."""
+    from google import genai  # lazy, like scoring: importing this module needs no key
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = genai.Client(api_key=settings.gemini_api_key)
 
     def generate(prompt: str) -> str:
-        resp = client.messages.create(
+        resp = client.models.generate_content(
             model=settings.model,
-            max_tokens=700,
-            system=DRAFT_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
+            contents=prompt,
+            config={"max_output_tokens": 700, "system_instruction": DRAFT_SYSTEM},
         )
-        return "".join(b.text for b in resp.content if b.type == "text")
+        return resp.text or ""
 
     return generate
 

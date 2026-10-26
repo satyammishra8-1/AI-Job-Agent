@@ -287,7 +287,7 @@ def _assemble_apply_inputs(job_id: str, *, data_dir: Path, facts_path: Path,
     resume = _find_tailored_resume(None, Path(out_dir), facts, record)
 
     drafter = None
-    if settings.anthropic_api_key:
+    if settings.gemini_api_key:
         from job_agent.apply.screening import make_drafter, make_llm_generate
         drafter = make_drafter(
             make_llm_generate(settings), facts, bank,

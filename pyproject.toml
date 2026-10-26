@@ -10,11 +10,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Aravind Pranav" }]
-keywords = ["jobs", "ats", "greenhouse", "lever", "ashby", "smartrecruiters", "llm", "anthropic"]
+keywords = ["jobs", "ats", "greenhouse", "lever", "ashby", "smartrecruiters", "llm", "gemini"]
 
 dependencies = [
     "httpx>=0.27",
-    "anthropic>=0.40",
+    "google-genai>=1.0.0",
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "python-dotenv>=1.0",

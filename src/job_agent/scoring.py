@@ -1,17 +1,15 @@
 """LLM fit scoring.
 
-Turns each surviving :class:`Job` into a :class:`ScoredJob` using a low-cost
-Haiku-class model. The public entry point is :func:`score_jobs`; the LLM call is
+Turns each surviving :class:`Job` into a :class:`ScoredJob` using Gemini.
+The public entry point is :func:`score_jobs`; the LLM call is
 isolated behind :func:`score_one` so it can be swapped or mocked.
 
 Reliability: the model is asked for strict JSON matching a fixed schema. We parse
 defensively — on malformed output we retry once, and if it still fails the job is
 marked ``verdict="unscored"`` rather than crashing the run.
 
-NOTE (verification gate): the exact request shape (structured `output_config.format`
-vs. tool-use) is confirmed by a one-off smoke test before this module is relied
-on — see scripts/verify note in the README. Both request shapes are implemented
-here; ``method`` selects which, defaulting to the verified path.
+Both Gemini request shapes are implemented here: structured JSON output and
+forced function calling. ``method`` selects which, defaulting to structured.
 """
 
 from __future__ import annotations
@@ -81,34 +79,37 @@ def _coerce(job: Job, data: dict[str, Any]) -> ScoredJob:
 
 
 def _call_structured(client, model: str, job: Job, profile: SearchProfile) -> str:
-    """One call using structured outputs (output_config.format). Returns JSON text."""
-    resp = client.messages.create(
+    """One call using Gemini structured JSON output. Returns JSON text."""
+    resp = client.models.generate_content(
         model=model,
-        max_tokens=512,
-        system=SYSTEM_PROMPT,
-        output_config={"format": {"type": "json_schema", "schema": SCORE_SCHEMA}},
-        messages=[{"role": "user", "content": build_user_prompt(job, profile)}],
+        contents=build_user_prompt(job, profile),
+        config={"max_output_tokens": 512, "system_instruction": SYSTEM_PROMPT,
+                "response_mime_type": "application/json",
+                "response_json_schema": SCORE_SCHEMA},
     )
-    return next((b.text for b in resp.content if b.type == "text"), "")
+    return resp.text or ""
 
 
 def _call_tool(client, model: str, job: Job, profile: SearchProfile) -> str:
-    """Fallback: force a tool call whose input IS the JSON we want."""
-    resp = client.messages.create(
+    """Fallback: force a Gemini function call whose args are the JSON wanted."""
+    resp = client.models.generate_content(
         model=model,
-        max_tokens=512,
-        system=SYSTEM_PROMPT,
-        tools=[{
-            "name": "record_fit",
-            "description": "Record the fit assessment for this job.",
-            "input_schema": SCORE_SCHEMA,
-        }],
-        tool_choice={"type": "tool", "name": "record_fit"},
-        messages=[{"role": "user", "content": build_user_prompt(job, profile)}],
+        contents=build_user_prompt(job, profile),
+        config={
+            "max_output_tokens": 512,
+            "system_instruction": SYSTEM_PROMPT,
+            "tools": [{"function_declarations": [{
+                "name": "record_fit",
+                "description": "Record the fit assessment for this job.",
+                "parameters_json_schema": SCORE_SCHEMA,
+            }]}],
+            "tool_config": {"function_calling_config": {
+                "mode": "ANY", "allowed_function_names": ["record_fit"]}},
+        },
     )
-    for block in resp.content:
-        if block.type == "tool_use":
-            return json.dumps(block.input)
+    for call in resp.function_calls or []:
+        if call.name == "record_fit":
+            return json.dumps(call.args or {})
     return ""
 
 
@@ -144,8 +145,8 @@ def score_jobs(
     client=None,
 ) -> list[ScoredJob]:
     """Score every job. ``client`` is injectable for tests (defaults to the real
-    Anthropic client, constructed lazily so importing this module needs no key)."""
+    Gemini client, constructed lazily so importing this module needs no key)."""
     if client is None:
-        import anthropic  # imported lazily so --demo / tests need no SDK key
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        from google import genai  # lazy so --demo / tests need no SDK key
+        client = genai.Client(api_key=settings.gemini_api_key)
     return [score_one(client, settings.model, job, profile, method=method) for job in jobs]

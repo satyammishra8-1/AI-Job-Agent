@@ -74,7 +74,7 @@ Pipeline: fetched 6 → keyword 5 → recency(30d) 5 → location 4 → seniorit
 ### Real run
 
 ```bash
-cp .env.example .env                                  # add your ANTHROPIC_API_KEY
+cp .env.example .env                                  # add your GEMINI_API_KEY
 cp search_profile.example.yaml search_profile.yaml    # edit roles / companies / location
 cp data/answer_bank.example.yaml data/answer_bank.yaml # fill your real apply answers
 python -m job_agent search                            # fetch, filter, score, rank
@@ -157,10 +157,10 @@ only ranks roles that already fit your level and years.
 
 ### Scoring
 
-Scoring uses a low-cost Haiku-class model (`claude-haiku-4-5`, confirmed against
-the Anthropic docs, overridable via `JOB_AGENT_MODEL`). The model returns strict
+Scoring uses Gemini `gemini-3.1-flash-lite` by default, overridable via
+`JOB_AGENT_MODEL`. The model returns strict
 JSON — `{score 0-100, verdict strong|possible|skip, reasons[],
-missing_requirements[]}` — via structured outputs (`output_config.format`).
+missing_requirements[]}` — via Gemini structured JSON output (`response_json_schema`).
 Output is parsed defensively: on malformed JSON it retries once, and if it still
 fails the job is kept but marked `unscored` rather than crashing the run.
 
@@ -217,7 +217,7 @@ and wording, but it cannot fabricate.
   and its text **extracted back out** and asserted selectable with sections in
   order. A PDF that fails extraction is a failed build.
 
-Tailoring uses **`claude-sonnet-4-6`** for quality; scoring stays on Haiku.
+Tailoring uses **`gemini-3.1-flash-lite`**, the same default model as scoring.
 
 ## Assisted apply (Slice 4)
 
@@ -249,7 +249,7 @@ just the docs:
 - **Screening questions: grounded drafts, never unreviewed.** Unfilled questions
   are routed (`screening.py`): *factual* → answer bank/career facts only (blank +
   flagged if absent, no LLM); *consent/EEO* → always pauses; *free-text* ("why
-  us?", "describe a project") → a Haiku draft grounded ONLY in your career facts +
+  us?", "describe a project") → a Gemini draft grounded ONLY in your career facts +
   answer bank + this JD, run through a no-fabrication gate (unknown employers,
   unbanked metrics, "I've used their product" claims → regenerate once, else
   `[GATE-FLAGGED]`). Drafts appear at the review tagged `[AI-DRAFT]` /
@@ -333,7 +333,7 @@ src/job_agent/
   tailor/
     extract.py       base resume (.docx) -> career_facts.yaml
     career_facts.py  frozen CareerFacts models + allow-lists
-    tailor.py        mega prompt + facts + JD -> Sonnet -> resume + NOTES
+    tailor.py        mega prompt + facts + JD -> Gemini -> resume + NOTES
     render_pdf.py    ATS-safe PDF + editable .docx (two-column skills layout)
     verify.py        bidirectional no-drift gate + scope gate + PDF text gate
     textnorm.py      normalization shared by rendering and the no-drift gate

@@ -164,7 +164,7 @@ ESSAY = _control(tag="textarea", type="", name="project",
 
 
 def test_free_text_drafts_with_the_existing_screening_drafter(tmp_path, monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     from job_agent.apply import screening
     monkeypatch.setattr(screening, "make_llm_generate",
                         lambda settings: lambda prompt: "I shipped an ML feature store at Acme.")
@@ -182,7 +182,7 @@ def test_free_text_drafts_with_the_existing_screening_drafter(tmp_path, monkeypa
 
 def test_no_api_key_means_no_drafting_and_the_question_pauses(client, monkeypatch):
     # empty (not unset): load_dotenv must not re-read a real key from .env
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
     data = client.post("/api/extension/fill-values",
                        json={"fields": [ESSAY], "company": "Acme",
                              "jd": "We need ML."}).json()
@@ -191,7 +191,7 @@ def test_no_api_key_means_no_drafting_and_the_question_pauses(client, monkeypatc
 
 
 def test_consent_still_pauses_even_with_a_drafter_available(tmp_path, monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     from job_agent.apply import screening
     monkeypatch.setattr(screening, "make_llm_generate",
                         lambda settings: lambda prompt: "should never appear")
@@ -208,15 +208,15 @@ def test_consent_still_pauses_even_with_a_drafter_available(tmp_path, monkeypatc
 # --- the popup must know WHY there is no draft ----------------------------------------
 
 def test_response_reports_drafting_off_and_why_without_a_key(client, monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "")   # empty beats .env re-load
+    monkeypatch.setenv("GEMINI_API_KEY", "")   # empty beats .env re-load
     data = client.post("/api/extension/fill-values",
                        json={"fields": [ESSAY], "company": "Acme", "jd": "x"}).json()
     assert data["drafting"]["enabled"] is False
-    assert "anthropic_api_key" in data["drafting"]["reason"].lower()
+    assert "gemini_api_key" in data["drafting"]["reason"].lower()
 
 
 def test_response_reports_drafting_on_with_a_key(tmp_path, monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     from job_agent.apply import screening
     monkeypatch.setattr(screening, "make_llm_generate",
                         lambda settings: lambda prompt: "drafted text")

@@ -19,9 +19,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from job_agent.seniority import LEVEL_NAMES
 
-# A low-cost, current Haiku-class model. Confirmed against the Anthropic docs
-# rather than assumed. Overridable via the JOB_AGENT_MODEL env var.
-DEFAULT_MODEL = "claude-haiku-4-5"
+# Default Gemini model. Overridable via the JOB_AGENT_MODEL env var.
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 
 SourceName = str  # validated against the known set below
 
@@ -84,7 +83,7 @@ class SearchProfile(BaseModel):
 class Settings(BaseModel):
     """Runtime settings from the environment."""
 
-    anthropic_api_key: str | None = None
+    gemini_api_key: str | None = None
     model: str = DEFAULT_MODEL
     data_dir: Path = Path("data")
 
@@ -93,7 +92,7 @@ def load_settings() -> Settings:
     """Read ``.env`` (if present) and the environment into :class:`Settings`."""
     load_dotenv()  # loads .env from CWD if it exists; no-op otherwise
     return Settings(
-        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY") or None,
+        gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
         model=os.environ.get("JOB_AGENT_MODEL") or DEFAULT_MODEL,
         data_dir=Path(os.environ.get("JOB_AGENT_DATA_DIR", "data")),
     )

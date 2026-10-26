@@ -195,7 +195,7 @@ def test_run_search_cli_namespace_satisfies_cmd_search(tmp_path, monkeypatch):
         per_source={"ashby/snowflake": 1}, warnings=[]))
     monkeypatch.setattr(cli, "score_jobs",
                         lambda *a, **k: [ScoredJob(job=job, score=80, verdict="strong")])
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     monkeypatch.setenv("JOB_AGENT_DATA_DIR", str(tmp_path))
     profile = tmp_path / "profile.yaml"
     profile.write_text("keywords: [ml]\nsources:\n  - {ats: ashby, board: snowflake}\n")

@@ -155,8 +155,8 @@ def cmd_search(console: Console, args: argparse.Namespace) -> int:
         return 0
 
     settings = load_settings()
-    if not settings.anthropic_api_key:
-        console.print("[red]ANTHROPIC_API_KEY is not set.[/red] Add it to .env or use --demo.")
+    if not settings.gemini_api_key:
+        console.print("[red]GEMINI_API_KEY is not set.[/red] Add it to .env or use --demo.")
         return 2
     try:
         profile = load_profile(args.profile)
@@ -308,8 +308,8 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
         console.print("[red]Provide --job <id>[/red] (from a prior `search`) or use --demo.")
         return 2
     settings = load_settings()
-    if not settings.anthropic_api_key:
-        console.print("[red]ANTHROPIC_API_KEY is not set.[/red] Add it to .env.")
+    if not settings.gemini_api_key:
+        console.print("[red]GEMINI_API_KEY is not set.[/red] Add it to .env.")
         return 2
     try:
         facts = load_career_facts(args.facts)
@@ -446,10 +446,10 @@ def cmd_apply(console: Console, args: argparse.Namespace) -> int:
                           "Add [bold]--submit[/bold] to enable real submission (still gated by "
                           "your explicit approval).\n")
 
-        # Screening-question drafting: grounded Haiku drafts, shown as
+        # Screening-question drafting: grounded Gemini drafts, shown as
         # [AI-DRAFT] at the review gate. Off without an API key.
         drafter = None
-        if settings.anthropic_api_key:
+        if settings.gemini_api_key:
             from job_agent.apply.screening import make_drafter, make_llm_generate
             drafter = make_drafter(
                 make_llm_generate(settings), facts, bank,
@@ -458,7 +458,7 @@ def cmd_apply(console: Console, args: argparse.Namespace) -> int:
                 cache_path=settings.data_dir / "answers_cache.json",
             )
         else:
-            console.print("[dim]No ANTHROPIC_API_KEY — screening questions will pause "
+            console.print("[dim]No GEMINI_API_KEY — screening questions will pause "
                           "instead of being AI-drafted.[/dim]")
 
         cfg = ApplyConfig(

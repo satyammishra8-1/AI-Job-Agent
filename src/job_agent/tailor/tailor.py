@@ -16,11 +16,11 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
-from job_agent.config import Settings
+from job_agent.config import DEFAULT_MODEL, Settings
 from job_agent.tailor.career_facts import CareerFacts
 
-# Tailoring quality model — Sonnet-class, confirmed from the Anthropic docs.
-TAILOR_MODEL = "claude-sonnet-4-6"
+# Tailoring uses the configured default Gemini model.
+TAILOR_MODEL = DEFAULT_MODEL
 
 MEGAPROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts" / "tailor_megaprompt.txt"
 
@@ -215,19 +215,19 @@ def split_notes(raw: str) -> tuple[str, str]:
 
 
 def _default_generate(system: str, user: str, settings: Settings) -> str:
-    """Real Sonnet call (imported lazily so demo/tests need no SDK/key)."""
-    import anthropic
+    """Real Gemini call (imported lazily so demo/tests need no SDK/key)."""
+    from google import genai
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    resp = client.messages.create(
+    client = genai.Client(api_key=settings.gemini_api_key)
+    resp = client.models.generate_content(
         model=TAILOR_MODEL,
-        max_tokens=8000,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        contents=user,
+        config={"max_output_tokens": 8000, "system_instruction": system},
     )
-    if resp.stop_reason == "max_tokens":
+    finish_reason = resp.candidates[0].finish_reason if resp.candidates else None
+    if str(finish_reason).split(".")[-1] == "MAX_TOKENS":
         raise ValueError("Tailoring output hit max_tokens (truncated). Increase max_tokens.")
-    return "".join(b.text for b in resp.content if b.type == "text")
+    return resp.text or ""
 
 
 def tailor_resume(
@@ -246,7 +246,7 @@ def tailor_resume(
     * ``generate`` — inject a custom ``(system, user, settings) -> str`` (tests).
     * ``extra_instruction`` — appended to the user turn (used to correct a failed
       format check on a retry).
-    * otherwise a real Sonnet call is made using ``settings``.
+    * otherwise a real Gemini call is made using ``settings``.
     """
     base = megaprompt if megaprompt is not None else load_megaprompt()
     system = (f"{base}\n\n{POLICY_ADDENDUM}\n\n"
@@ -264,8 +264,8 @@ def tailor_resume(
     elif generate is not None:
         raw = generate(system, user, settings)
     else:
-        if settings is None or not settings.anthropic_api_key:
-            raise ValueError("A real tailoring run needs Settings with an ANTHROPIC_API_KEY.")
+        if settings is None or not settings.gemini_api_key:
+            raise ValueError("A real tailoring run needs Settings with a GEMINI_API_KEY.")
         raw = _default_generate(system, user, settings)
 
     resume_text, notes = split_notes(raw)

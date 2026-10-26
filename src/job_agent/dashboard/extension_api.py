@@ -189,9 +189,9 @@ def create_extension_router(*, data_dir: Path, facts_path: Path,
         # The popup needs to know WHY drafting didn't run, not just that it
         # didn't — report the state explicitly.
         settings = load_settings()
-        if not settings.anthropic_api_key:
+        if not settings.gemini_api_key:
             drafting = {"enabled": False,
-                        "reason": "no ANTHROPIC_API_KEY loaded in the backend — "
+                        "reason": "no GEMINI_API_KEY loaded in the backend — "
                                   "add it to .env and restart the dashboard"}
         elif not (req.company or req.jd):
             drafting = {"enabled": False,
