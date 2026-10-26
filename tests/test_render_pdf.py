@@ -34,6 +34,24 @@ def test_pdf_has_real_extractable_bullets_no_unmapped_glyphs(tmp_path):
     assert "Airflow" in text              # bullet-line words extract cleanly
 
 
+def test_project_only_pdf_has_a_verified_projects_section(tmp_path):
+    from job_agent.tailor.career_facts import CareerFacts, Project
+    from job_agent.tailor.tailor import attach_verified_projects
+
+    facts = CareerFacts(projects=(Project(name="QuickChat", description="Built a messaging app.",
+                                          technologies=("Python",),
+                                          evidence=("GitHub repository",)),))
+    face = ("Jordan Rivers\ne | p\nPROFESSIONAL SUMMARY\nPython developer.\n"
+            "TECHNICAL SKILLS\nLanguages: Python\nPROFESSIONAL EXPERIENCE\n"
+            "EDUCATION\nCERTIFICATIONS\n")
+    resume = attach_verified_projects(face, facts, "Python")
+    pdf = render_pdf(resume, tmp_path / "project.pdf")
+    assert verify_pdf(pdf, facts) == [
+        "Professional Summary", "Technical Skills", "Professional Experience",
+        "Projects", "Education", "Certifications"]
+    assert "QuickChat" in extract_pdf_text(pdf)
+
+
 def test_trim_to_caps_limits_bullets_per_section():
     from job_agent.tailor.render_pdf import trim_to_caps
     txt = ("Role: A\nCompany: B\nDuration: d\nResponsibilities:\n"

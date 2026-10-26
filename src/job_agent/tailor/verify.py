@@ -231,6 +231,10 @@ def _facts_corpus(facts: CareerFacts) -> str:
     for e in facts.employers:
         parts += [e.company, e.title, e.project_description,
                   *e.real_bullets, *e.real_metrics, *e.real_skills]
+    for project in facts.projects:
+        if project.has_evidence():
+            parts += [project.name, project.role, project.description,
+                      *project.technologies, project.github_url or ""]
     return _scope_norm(" ".join(p for p in parts if p))
 
 
@@ -244,11 +248,16 @@ def unbanked_scope_words(resume_text: str, facts: CareerFacts) -> list[str]:
 
 
 def _banked_metric_values(facts: CareerFacts) -> set[float]:
-    """Every numeric value appearing in the employers' banked real_metrics."""
+    """Numbers in banked employer metrics and verified project descriptions."""
     values: set[float] = set()
     for e in facts.employers:
         for metric in e.real_metrics:
             for tok in _ANY_NUMBER.findall(metric):
+                if (v := _to_value(tok)) is not None:
+                    values.add(v)
+    for project in facts.projects:
+        if project.has_evidence():
+            for tok in _ANY_NUMBER.findall(project.description):
                 if (v := _to_value(tok)) is not None:
                     values.add(v)
     return values
@@ -281,6 +290,37 @@ def _output_employer_triples(resume_text: str) -> list[tuple[str, str, str]]:
                 triples.append((company, role, m.group(1)))
             role = company = None
     return triples
+
+
+def _output_project_entries(resume_text: str) -> list[dict[str, str]]:
+    """Read the deterministic PROJECTS section written from profile facts."""
+    entries: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    in_projects = False
+    labels = {"project", "role", "description", "technologies", "link"}
+    for raw in resume_text.splitlines():
+        line = strip_markdown(raw).strip()
+        heading = _canonical_heading(line)
+        if heading == "Projects":
+            in_projects = True
+            continue
+        if in_projects and heading:
+            break
+        if not in_projects:
+            continue
+        match = re.match(r"(?i)^(Project|Role|Description|Technologies|Link):\s*(.*)$", line)
+        if not match:
+            continue
+        key, value = match.group(1).lower(), match.group(2).strip()
+        if key == "project":
+            if current:
+                entries.append(current)
+            current = {"project": value}
+        elif current and key in labels:
+            current[key] = value
+    if current:
+        entries.append(current)
+    return entries
 
 
 def _employer_problem(company: str, title: str, duration: str, facts: CareerFacts) -> str | None:
@@ -332,12 +372,35 @@ def verify_no_drift(result: TailorResult, facts: CareerFacts) -> VerifyReport:
 
     # 1. Employers: every output (company,title,duration) must exist unchanged.
     out_triples = _output_employer_triples(result.resume_text)
-    if not out_triples:
+    if not out_triples and facts.employers:
         problems.append("Could not find any employer blocks in the output "
                         "(Role/Company/Duration) — cannot verify against the base resume.")
     for company, title, duration in out_triples:
         if problem := _employer_problem(company, title, duration, facts):
             problems.append(problem)
+
+    # Verified projects are written directly from profile facts; check each
+    # field and require every evidence-bearing project to remain associated.
+    expected_projects = [project for project in facts.projects if project.has_evidence()]
+    actual_projects = _output_project_entries(result.resume_text)
+    if len(actual_projects) != len(expected_projects):
+        problems.append("Project section does not contain exactly the evidence-backed profile projects.")
+    expected_by_name = {_norm(project.name): project for project in expected_projects}
+    for item in actual_projects:
+        project = expected_by_name.get(_norm(item.get("project", "")))
+        if project is None:
+            problems.append(f"Unsupported project printed on resume: {item.get('project', '')!r}")
+            continue
+        checks = {
+            "role": project.role,
+            "description": project.description,
+            "technologies": ", ".join(project.technologies),
+            "link": project.github_url or "",
+        }
+        for key, expected in checks.items():
+            actual = item.get(key, "")
+            if _norm(actual) != _norm(expected):
+                problems.append(f"Project {key} differs from the verified profile for {project.name!r}.")
 
     # 2. Certifications: only real ones may be printed.
     allowed_certs = facts.certification_names()
@@ -449,7 +512,7 @@ def extract_pdf_text(pdf_path: str | Path) -> str:
     return extract_text(str(pdf_path)) or ""
 
 
-def verify_pdf(pdf_path: str | Path) -> list[str]:
+def verify_pdf(pdf_path: str | Path, facts: CareerFacts | None = None) -> list[str]:
     """Assert the PDF has selectable text and the standard sections IN ORDER.
 
     Returns the headings found (in order). Raises :class:`PdfVerifyError` on failure.
@@ -462,15 +525,22 @@ def verify_pdf(pdf_path: str | Path) -> list[str]:
                              f"(unextractable by ATS). Use standard-encoded characters.")
 
     low = text.lower()
+    headings = list(CANONICAL_HEADINGS)
+    if facts and any(project.has_evidence() for project in facts.projects):
+        headings.insert(headings.index("Education"), "Projects")
     positions = []
-    for heading in CANONICAL_HEADINGS:
-        idx = low.find(heading.lower())
+    for heading in headings:
+        if heading == "Projects":
+            match = re.search(r"(?im)^\s*projects\s*$", low)
+            idx = match.start() if match else -1
+        else:
+            idx = low.find(heading.lower())
         if idx < 0:
             raise PdfVerifyError(f"{pdf_path}: missing standard section '{heading}'.")
         positions.append(idx)
     if positions != sorted(positions):
-        order = [h for _, h in sorted(zip(positions, CANONICAL_HEADINGS))]
+        order = [h for _, h in sorted(zip(positions, headings))]
         raise PdfVerifyError(
-            f"{pdf_path}: sections out of order. Expected {CANONICAL_HEADINGS}, got {order}."
+            f"{pdf_path}: sections out of order. Expected {headings}, got {order}."
         )
-    return list(CANONICAL_HEADINGS)
+    return headings

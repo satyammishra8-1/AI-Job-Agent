@@ -69,6 +69,7 @@ CANONICAL_HEADINGS = [
     "Certifications",
 ]
 _HEADING_LOOKUP = {h.lower(): h for h in CANONICAL_HEADINGS}
+_HEADING_LOOKUP["projects"] = "Projects"
 _SUBLABELS = re.compile(
     r"^(Role|Company|Project Description|Duration|Responsibilities|Achievements):\s*(.*)$",
     re.IGNORECASE,

@@ -82,7 +82,7 @@ def build_user_prompt(job: Job, profile: SearchProfile,
         if skills:
             profile_lines.append("Evidence-backed profile skills: " + "; ".join(skills))
         for project in candidate.projects:
-            if project.evidence:
+            if project.has_evidence():
                 profile_lines.append(
                     f"Project: {escape(project.name)}; technologies: "
                     f"{', '.join(escape(s) for s in project.technologies)}; "

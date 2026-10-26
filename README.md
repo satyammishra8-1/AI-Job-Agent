@@ -228,6 +228,10 @@ and wording, but it cannot fabricate.
   **scope-qualifier gate** rejects scale inflation ("multi-terabyte",
   "enterprise-scale", "firm-wide") unless the exact phrase appears in the facts
   — checked on the face *and* re-checked on the rendered artifact.
+- **Project-only profiles.** Freshers can tailor without inventing an employer:
+  evidence-backed projects are ordered for the JD and inserted from stored
+  project facts into a separate `PROJECTS` section. Those fields are checked
+  against the same profile facts before PDF generation.
 - **Professional, ATS-safe output.** A clean single-column `.docx` is the source
   of truth: large bold name with contact beneath, CAPS section headings under a
   thin rule, bold company names with **right-aligned dates**, role titles in

@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict
 
 from job_agent.config import DEFAULT_MODEL, Settings
 from job_agent.tailor.career_facts import CareerFacts
+from job_agent.tailor.textnorm import strip_markdown
 
 # Tailoring uses the configured default Gemini model.
 TAILOR_MODEL = DEFAULT_MODEL
@@ -31,7 +32,7 @@ POLICY_ADDENDUM = """=== OUTPUT & METRIC POLICY (OVERRIDES ANY CONFLICTING INSTR
 
 FORMAT:
 - Header: line 1 is my Name only; line 2 is exactly "email | phone". No title line, no tagline, no marketing subtitle.
-- Section headings in ALL CAPS, exactly: PROFESSIONAL SUMMARY, TECHNICAL SKILLS, PROFESSIONAL EXPERIENCE, EDUCATION, CERTIFICATIONS. No other sections, no reordering.
+- Section headings in ALL CAPS, in this order: PROFESSIONAL SUMMARY, TECHNICAL SKILLS, PROFESSIONAL EXPERIENCE, PROJECTS when verified project facts exist, EDUCATION, CERTIFICATIONS. No other sections or reordering. If no employer facts exist, leave PROFESSIONAL EXPERIENCE empty; do not create an employer or work history.
 - TECHNICAL SKILLS: render as category lines "Category: value, value, value" (comma-separated). Do NOT use tables, pipe characters (|), or bullet lists for skills.
 - PROFESSIONAL EXPERIENCE: each role has Role:, Company:, Project Description:, Duration:, then Responsibilities: bullets and Achievements: bullets, each bullet starting with a real bullet character. Write each company name and title EXACTLY as given in my career facts.
 - Project Description describes the PROJECT, not the company. The Company: line already names the employer, so the Project Description must NOT restate or describe the company (never write "<Company> is a ..." or a company blurb). Write 1-2 sentences on the actual project/system: what was built, the domain/problem it solved, and the scale/environment — drawn only from my real responsibilities. Reweight it toward what THIS JD cares about. Do not invent a project or add scope I did not work on.
@@ -119,7 +120,7 @@ def build_facts_block(facts: CareerFacts) -> str:
         if sources:
             lines.append(f"- {skill}: " + "; ".join(sources))
     for project in facts.projects:
-        if project.evidence:
+        if project.has_evidence():
             lines.append(f"\nVerified project: {project.name}")
             if project.role:
                 lines.append(f"Role: {project.role}")
@@ -209,6 +210,53 @@ def reorder_skills(resume_text: str, jd_text: str) -> str:
     for i, new_line in zip(skill_idx, reordered):
         block[i] = new_line
     return "\n".join(lines[:start] + block + lines[end:])
+
+
+def attach_verified_projects(resume_text: str, facts: CareerFacts, jd_text: str) -> str:
+    """Replace model-written projects with JD-ordered, profile-exact entries."""
+    lines = resume_text.splitlines()
+    cleaned: list[str] = []
+    skipping = False
+    for line in lines:
+        heading = strip_markdown(line).strip().upper()
+        if heading == "PROJECTS":
+            skipping = True
+            continue
+        if skipping and heading in {"EDUCATION", "CERTIFICATIONS"}:
+            skipping = False
+        if not skipping:
+            cleaned.append(line)
+
+    projects = [project for project in facts.projects if project.has_evidence()]
+    if not projects:
+        return "\n".join(cleaned)
+
+    themes = jd_themes(jd_text, top=20)
+    projects.sort(key=lambda project: -sum(
+        1 for theme in themes
+        if re.search(r"(?<![a-z0-9])" + re.escape(theme) + r"(?![a-z0-9])",
+                     f"{project.name} {project.description} {' '.join(project.technologies)}".lower())
+    ))
+    block = ["PROJECTS"]
+    def one_line(value: str) -> str:
+        return re.sub(r"\s+", " ", value).strip()
+
+    for project in projects:
+        block.append(f"Project: {one_line(project.name)}")
+        if project.role:
+            block.append(f"Role: {one_line(project.role)}")
+        if project.description:
+            block.append(f"Description: {one_line(project.description)}")
+        if project.technologies:
+            block.append("Technologies: " + ", ".join(one_line(t) for t in project.technologies))
+        if project.github_url:
+            block.append(f"Link: {one_line(project.github_url)}")
+        block.append("")
+
+    insert_at = next((i for i, line in enumerate(cleaned)
+                      if strip_markdown(line).strip().upper() == "EDUCATION"), len(cleaned))
+    cleaned[insert_at:insert_at] = block
+    return "\n".join(cleaned).strip()
 
 
 def build_user_message(facts: CareerFacts, jd_text: str) -> str:

@@ -44,6 +44,9 @@ class Project(BaseModel):
     evidence: tuple[str, ...] = ()
     github_url: str | None = None
 
+    def has_evidence(self) -> bool:
+        return bool(self.name.strip()) and any(source.strip() for source in self.evidence)
+
 
 class Employer(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -104,7 +107,7 @@ class CareerFacts(BaseModel):
         for e in self.employers:
             skills |= {_norm(s) for s in e.real_skills}
         for project in self.projects:
-            if project.evidence:
+            if project.has_evidence():
                 skills |= {_norm(s) for s in project.technologies}
         skills |= {_norm(s) for s, sources in self.skill_evidence.items() if sources}
         # A named technical credential supports the technology stated in its name.

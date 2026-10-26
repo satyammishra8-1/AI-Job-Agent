@@ -46,6 +46,7 @@ from job_agent.tailor.render_pdf import (
 from job_agent.tailor.tailor import (
     TAILOR_MODEL,
     TailorResult,
+    attach_verified_projects,
     load_megaprompt,
     reorder_skills,
     tailor_resume,
@@ -268,6 +269,7 @@ def _gate(facts, result, jd: str | None = None) -> TailorResult:
         normalize_header(result.resume_text, facts.name, facts.email, facts.phone)))
     if jd:
         face = reorder_skills(face, jd)   # deterministic: JD-emphasized lines first
+    face = attach_verified_projects(face, facts, jd or "")
     checked = TailorResult(resume_text=face, notes=result.notes, raw=result.raw)
     verify_no_drift(checked, facts)
     verify_format(checked, facts, jd)
@@ -318,7 +320,7 @@ def _write(console: Console, checked: TailorResult, out_dir: Path, filename: str
                      f"{MAX_RESUME_PAGES} pages." if dropped else ""))
 
     try:
-        sections = verify_pdf(pdf_out)
+        sections = verify_pdf(pdf_out, facts=facts)
     except PdfVerifyError as exc:
         console.print(f"[red]PDF verification failed:[/red] {exc}")
         return 1
@@ -363,7 +365,8 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
         console.print(f"[red]{exc}[/red]")
         return 2
 
-    if not facts.name.strip() or not facts.employers:
+    has_verified_projects = any(project.has_evidence() for project in facts.projects)
+    if not facts.name.strip() or not (facts.employers or has_verified_projects):
         console.print("[red]Resume tailoring requires your name and at least one evidenced experience/project entry in career_facts.yaml.[/red]")
         return 2
 
@@ -384,7 +387,7 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
 
     console.print(f"[bold cyan]job-agent tailor[/bold cyan] — tailoring with {TAILOR_MODEL}\n")
     from job_agent.ats import ats_readiness
-    from job_agent.tailor.verify import _output_employer_triples
+    from job_agent.tailor.verify import _output_employer_triples, _output_project_entries
 
     filename = _job_resume_filename(facts.name.split()[0], job.title, job.company, job.id)
     ats = ats_readiness(job.model_copy(update={"description": jd}), facts)
@@ -400,6 +403,10 @@ def cmd_tailor(console: Console, args: argparse.Namespace) -> int:
         source_order = [employer.company for employer in facts.employers]
         reordered = [company for index, company in enumerate(output_order)
                      if company in source_order and source_order.index(company) != index]
+        output_projects = [item["project"] for item in _output_project_entries(face)]
+        source_projects = [project.name for project in facts.projects if project.has_evidence()]
+        reordered.extend(name for index, name in enumerate(output_projects)
+                         if name in source_projects and source_projects.index(name) != index)
         not_added = [item["keyword"] for item in ats["keywords"]
                      if item["status"] != "MATCHED"]
         return {"emphasized": emphasized, "reordered": reordered,

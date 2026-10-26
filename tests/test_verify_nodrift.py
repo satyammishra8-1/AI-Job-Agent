@@ -10,6 +10,7 @@ import pytest
 import job_agent.tailor as tailor_pkg
 from job_agent.tailor.career_facts import load_career_facts
 from job_agent.tailor.tailor import TailorResult, tailor_resume
+from job_agent.tailor.tailor import attach_verified_projects
 from job_agent.tailor.verify import (
     DriftError,
     FormatError,
@@ -74,6 +75,36 @@ def test_profile_listed_skill_without_evidence_cannot_be_added_to_resume():
     mutated = BASE.resume_text.replace("Python, SQL", "Python, SQL, React")
     with pytest.raises(DriftError, match="Unsupported skill/technology.*React"):
         verify_no_drift(_mutated(mutated), facts)
+
+
+def test_project_only_profile_is_rendered_from_evidence_and_validates():
+    from job_agent.tailor.career_facts import CareerFacts, Project
+
+    facts = CareerFacts(
+        name="Jordan Rivers",
+        projects=(Project(name="QuickChat", role="Developer",
+                          description="Built a messaging app.", technologies=("Python",),
+                          evidence=("GitHub repository",)),),
+    )
+    face = ("Jordan Rivers\njordan@example.com | 123\n\nPROFESSIONAL SUMMARY\n"
+            "Software engineer building Python applications.\n\nTECHNICAL SKILLS\n"
+            "Languages: Python\n\nPROFESSIONAL EXPERIENCE\n\nEDUCATION\n\nCERTIFICATIONS\n")
+    project_face = attach_verified_projects(face, facts, "Python developer")
+    result = _mutated(project_face)
+    assert verify_no_drift(result, facts).ok
+    assert "PROJECTS\nProject: QuickChat" in project_face
+
+
+def test_project_description_cannot_drift_from_verified_profile():
+    from job_agent.tailor.career_facts import CareerFacts, Project
+
+    facts = CareerFacts(projects=(Project(name="QuickChat", description="Built a messaging app.",
+                                          technologies=("Python",),
+                                          evidence=("GitHub repository",)),))
+    face = attach_verified_projects("PROJECTS\nEDUCATION\nCERTIFICATIONS", facts, "Python")
+    bad = face.replace("Built a messaging app.", "Processed 10 million records.")
+    with pytest.raises(DriftError, match="Project description differs"):
+        verify_no_drift(_mutated(bad), facts)
 
 
 def test_fabricated_education_is_rejected():

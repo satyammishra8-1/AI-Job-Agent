@@ -79,7 +79,7 @@ def evidenced_profile_skills(facts: CareerFacts) -> dict[str, tuple[str, ...]]:
         for skill in employer.real_skills:
             evidenced.setdefault(skill.lower(), (skill, employer.company))
     for project in facts.projects:
-        if project.evidence:
+        if project.has_evidence():
             for skill in project.technologies:
                 evidenced.setdefault(skill.lower(), (skill, project.name))
     for skill, sources in facts.skill_evidence.items():
