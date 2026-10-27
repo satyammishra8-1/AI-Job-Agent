@@ -66,6 +66,8 @@ class ApplicationRecord(BaseModel):
     verification_status: str = ""
     eligibility_status: str = ""
     match_score: float | None = None
+    profile_id: str = ""
+    profile_version: int = 0
     resume_identity: str = ""
     resume_version: str = ""
     answers_identity: str = ""

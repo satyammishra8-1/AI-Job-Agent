@@ -13,6 +13,9 @@ from __future__ import annotations
 from argparse import Namespace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import tempfile
+
+import yaml
 
 from rich.console import Console
 
@@ -277,16 +280,57 @@ def _run_cli(handler, ns: Namespace) -> dict:
     return {"ok": code == 0, "exit_code": code, "output": console.export_text()}
 
 
-def run_search_cli(profile_path: str | Path, days: int = 30) -> dict:
+def run_search_cli(profile_path: str | Path, days: int = 30,
+                   facts_path: str | Path | None = None) -> dict:
     """Run the real search+score pipeline via the CLI's own command function."""
     from job_agent.cli import cmd_search
 
+    effective_profile = Path(profile_path)
+    temporary_profile = None
+    if facts_path is not None:
+        try:
+            from job_agent.config import load_profile
+            from job_agent.tailor.career_facts import load_career_facts
+            configured = load_profile(profile_path)
+            facts = load_career_facts(facts_path)
+            from job_agent.matching import evidenced_profile_skills
+            terms = [*configured.keywords, *facts.target_roles]
+            if facts.role:
+                terms.append(facts.role)
+            terms.extend(skill for skill, _ in evidenced_profile_skills(facts).values())
+            keywords = list(dict.fromkeys(term.strip() for term in terms if term.strip()))
+            locations = list(configured.location.allowed_countries)
+            if facts.preferred_locations:
+                locations = list(dict.fromkeys([*facts.preferred_locations, *locations]))
+            location = configured.location.model_copy(update={
+                "allowed_countries": locations,
+                "remote_ok": configured.location.remote_ok or facts.remote_preference == "remote",
+            })
+            configured = configured.model_copy(update={
+                "keywords": keywords, "location": location,
+                "experience_years": int(facts.experience_years)
+                if facts.experience_years is not None else configured.experience_years,
+                "candidate_summary": "\n".join(filter(None, [configured.candidate_summary,
+                    "Target roles: " + ", ".join(facts.target_roles) if facts.target_roles else "",
+                    "Preferred locations: " + ", ".join(facts.preferred_locations) if facts.preferred_locations else ""])),
+            })
+            handle = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".yaml", delete=False)
+            temporary_profile = Path(handle.name)
+            yaml.safe_dump(configured.model_dump(mode="json", exclude_defaults=True), handle, sort_keys=False)
+            handle.close()
+            effective_profile = temporary_profile
+        except (FileNotFoundError, ValueError):
+            pass
     # Must define every attribute cmd_search reads (the dashboard's own
     # "Hide applied" toggle filters client-side, so the printed table hides too).
-    ns = Namespace(demo=False, profile=str(profile_path), days=days,
+    ns = Namespace(demo=False, profile=str(effective_profile), days=days,
                    max_age_hours=None, limit=None, method="structured",
                    include_applied=False)
-    return _run_cli(cmd_search, ns)
+    try:
+        return _run_cli(cmd_search, ns)
+    finally:
+        if temporary_profile:
+            temporary_profile.unlink(missing_ok=True)
 
 
 def open_in_chrome(url: str, *, _run=None, _fallback=None) -> str:

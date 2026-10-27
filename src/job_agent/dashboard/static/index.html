@@ -354,10 +354,23 @@
 
 <!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
 <section id="sec-profile">
-  <h2>My Profile</h2>
-  <div class="sec-sub">Edit your local master profile. Skills, projects, education, and experience should include evidence/source details when available. No personal details are prefilled.</div>
+  <h2>Developer Profile</h2>
+  <div class="sec-sub">Your profile powers opportunity search, evidence-backed matching, resume tailoring, and application answers. Missing information stays unknown until you add it.</div>
+  <div class="card" style="padding:16px;margin:12px 0">
+    <div class="toolbar"><b id="profile-strength">Profile analysis</b><span id="profile-completeness"></span></div>
+    <div id="profile-overview" class="stats" aria-live="polite"></div>
+    <div id="profile-missing" class="sec-sub"></div>
+    <div id="profile-evidence" class="sec-sub"></div>
+  </div>
   <div class="card" style="padding:16px">
-    <textarea id="profile-json" aria-label="Master profile JSON" rows="22" spellcheck="false" style="width:100%;font:12px/1.5 ui-monospace,monospace"></textarea>
+    <div class="toolbar"><label>Profile section <select id="profile-section">
+      <option value="overview">Overview</option><option value="skills">Skills</option>
+      <option value="projects">Projects</option><option value="education">Education</option>
+      <option value="experience">Experience & achievements</option><option value="preferences">Career preferences</option>
+      <option value="evidence">Evidence & GitHub</option>
+    </select></label></div>
+    <div class="sec-sub" id="profile-section-help">Edit only this section; other profile information is preserved when you save.</div>
+    <textarea id="profile-json" aria-label="Selected developer profile section JSON" rows="16" spellcheck="false" style="width:100%;font:12px/1.5 ui-monospace,monospace"></textarea>
     <div class="toolbar"><button class="primary" id="profile-save">Save profile</button><span id="profile-status" aria-live="polite"></span></div>
   </div>
 </section>
@@ -378,6 +391,16 @@ const esc = (t) => String(t ?? "").replace(/[&<>"']/g,
 const USER_STATUSES = ["saved", "ready_to_apply", "applied", "under_review",
   "assessment", "interviewing", "offer", "rejected", "withdrawn"];
 const ALL_STATUSES = ["submitted", "paused", "failed", ...USER_STATUSES];
+let PROFILE = {};
+const PROFILE_SECTIONS = {
+  overview: ["name", "email", "phone", "location", "role", "career_status", "current_year", "expected_graduation", "experience_years"],
+  skills: ["skills_inventory", "skill_evidence"],
+  projects: ["projects"],
+  education: ["education", "education_details", "relevant_coursework"],
+  experience: ["employers", "certifications", "achievements"],
+  preferences: ["target_roles", "target_industries", "career_direction", "preferred_locations", "remote_preference", "internship_preference", "preferred_company_types", "minimum_compensation", "availability", "internship_duration", "preferred_start_date", "work_authorization"],
+  evidence: ["links", "github_profile_url", "github_repositories"]
+};
 
 // Friendly display names. Internal values (API statuses, verdicts) never change —
 // only what the user reads. Colors: green=done, blue=in progress, gray=neutral,
@@ -752,7 +775,9 @@ async function loadJobs() {
 
 async function loadProfile() {
   const data = await api("/api/profile");
-  $("#profile-json").value = JSON.stringify(data.profile, null, 2);
+  PROFILE = data.profile;
+  renderProfileSection();
+  renderProfileAnalysis(data.analysis || {});
   $("#profile-status").textContent = data.configured
     ? "Loaded from data/career_facts.yaml" : "No profile saved yet; save to create data/career_facts.yaml";
 }
@@ -761,10 +786,48 @@ async function saveProfile() {
   const status = $("#profile-status");
   status.classList.remove("err");
   try {
-    const data = await put("/api/profile", JSON.parse($("#profile-json").value));
-    $("#profile-json").value = JSON.stringify(data.profile, null, 2);
-    status.textContent = "Saved to data/career_facts.yaml";
+    const section = $("#profile-section").value;
+    const edits = JSON.parse($("#profile-json").value);
+    if (!edits || Array.isArray(edits) || typeof edits !== "object") throw new Error("Enter a JSON object for this profile section");
+    PROFILE = {...PROFILE, ...edits};
+    const data = await put("/api/profile", PROFILE);
+    PROFILE = data.profile;
+    renderProfileSection();
+    renderProfileAnalysis(data.analysis || {});
+    status.textContent = `Saved profile v${data.profile.profile_version}; changes require fresh application review.`;
   } catch (e) { status.textContent = e.message; status.classList.add("err"); }
+}
+
+function renderProfileSection() {
+  const section = $("#profile-section").value;
+  const view = Object.fromEntries(PROFILE_SECTIONS[section].map((key) => [key, PROFILE[key]]));
+  $("#profile-json").value = JSON.stringify(view, null, 2);
+  const help = {
+    overview: "Identity and current career level. Leave unknown details blank.",
+    skills: "Group skills by category and attach sources in skill_evidence. Only sourced skills count as evidence-backed.",
+    projects: "Add project details, measurable results only when supported, and evidence/source links.",
+    education: "Add degrees, institutions, branch, GPA, graduation year, and relevant coursework.",
+    experience: "Add internships, employment, freelance, open-source, hackathon, and leadership records with evidence.",
+    preferences: "Set target roles, locations, work mode, internship/full-time preference, compensation, and availability.",
+    evidence: "Add public GitHub profile/repository URLs and other profile evidence sources."
+  };
+  $("#profile-section-help").textContent = help[section];
+}
+
+function renderProfileAnalysis(a) {
+  $("#profile-strength").textContent = `Profile ${a.profile_strength || "incomplete"} · v${a.profile_version || 0}`;
+  $("#profile-completeness").textContent = `Completeness ${a.completeness ?? 0}%`;
+  const tiles = [
+    ["Target roles", (a.target_roles || []).join(", ") || "Not set"],
+    ["Evidence-backed skills", (a.strongest_skills || []).slice(0, 5).join(", ") || "None yet"],
+    ["Preferred locations", (a.target_locations || []).join(", ") || "Not set"],
+    ["Career direction", a.career_direction || "unknown"]
+  ];
+  $("#profile-overview").innerHTML = tiles.map(([k,v]) => `<div class="stat"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+  $("#profile-missing").innerHTML = `<b>What to add:</b> ${esc((a.missing || []).join(" · ") || "Core profile details are complete")}`;
+  const unsupported = a.unknown_or_unsupported_skills || [];
+  const sources = (a.skill_evidence || []).map((x) => `${x.skill}: ${x.source}`).join(" · ");
+  $("#profile-evidence").innerHTML = `<b>Evidence status:</b> ${esc((a.evidence_backed_skills || []).length)} backed skill(s); ${esc(unsupported.length)} claimed skill(s) need evidence${unsupported.length ? ` (${esc(unsupported.join(", "))})` : ""}. ${sources ? `<br><b>Sources:</b> ${esc(sources)}` : ""}`;
 }
 
 async function runSearch() {
@@ -1201,6 +1264,7 @@ $("#jf-score").addEventListener("input", renderJobs);
 $("#jf-hide-applied").addEventListener("change", renderJobs);
 $("#btn-search").addEventListener("click", runSearch);
 $("#profile-save").addEventListener("click", saveProfile);
+$("#profile-section").addEventListener("change", renderProfileSection);
 $("#apps-toggle").addEventListener("click", () => {
   const body = $("#apps-body");
   const hidden = body.classList.toggle("hidden");

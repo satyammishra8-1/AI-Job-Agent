@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 import os
 import tempfile
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -109,7 +110,8 @@ def create_app(*, data_dir: Path = Path("data"),
     data_dir = Path(data_dir)
     facts_path = Path(facts_path or data_dir / "career_facts.yaml")
     out_dir = Path(out_dir or data_dir / "output")
-    searcher = searcher or (lambda days: service.run_search_cli(profile_path, days))
+    searcher = searcher or (lambda days: service.run_search_cli(profile_path, days,
+                                                                  facts_path=facts_path))
     tailorer = tailorer or (lambda job_id: service.run_tailor_cli(
         job_id, data_dir=data_dir, facts_path=facts_path, out_dir=out_dir))
     previewer = previewer or (lambda job_id: service.run_apply_preview(
@@ -237,17 +239,44 @@ def create_app(*, data_dir: Path = Path("data"),
         from job_agent.tailor.career_facts import load_career_facts
 
         if not facts_path.exists():
-            return {"configured": False, "profile": CareerFacts().model_dump(mode="json")}
+            facts = CareerFacts()
+            from job_agent.profile_intelligence import analyze_profile
+            return {"configured": False, "profile": facts.model_dump(mode="json"),
+                    "analysis": analyze_profile(facts)}
         try:
             facts = load_career_facts(facts_path)
         except (FileNotFoundError, ValueError) as exc:
             raise HTTPException(400, str(exc)) from exc
+        from job_agent.profile_intelligence import analyze_profile
         return {"configured": facts.profile_configured(),
-                "profile": facts.model_dump(mode="json")}
+                "profile": facts.model_dump(mode="json"),
+                "analysis": analyze_profile(facts)}
+
+    @app.get("/api/profile/analyze")
+    def profile_analysis() -> dict:
+        from job_agent.profile_intelligence import analyze_profile
+        from job_agent.tailor.career_facts import load_career_facts
+        try:
+            facts = load_career_facts(facts_path)
+        except FileNotFoundError:
+            facts = CareerFacts()
+        return analyze_profile(facts)
 
     @app.put("/api/profile")
     def save_profile(req: CareerFacts) -> dict:
-        facts = CareerFacts.model_validate(req.model_dump())
+        from job_agent.json_store import read_json, write_json_atomic
+        from job_agent.profile_intelligence import analyze_profile
+        from job_agent.tailor.career_facts import load_career_facts
+        requested = CareerFacts.model_validate(req.model_dump())
+        existing = load_career_facts(facts_path) if facts_path.exists() else CareerFacts()
+        old_content = existing.model_dump(mode="json", exclude={"profile_id", "profile_version"})
+        new_content = requested.model_dump(mode="json", exclude={"profile_id", "profile_version"})
+        changed = (not facts_path.exists()) or old_content != new_content
+        facts = requested.model_copy(update={
+            "profile_id": existing.profile_id or requested.profile_id or uuid4().hex,
+            "profile_version": existing.profile_version + 1 if changed else
+                              max(existing.profile_version, requested.profile_version),
+        })
         facts_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = None
         try:
@@ -265,8 +294,31 @@ def create_app(*, data_dir: Path = Path("data"),
         finally:
             if temporary:
                 Path(temporary).unlink(missing_ok=True)
+        if changed and preparation_path.exists():
+            preparations = read_json(preparation_path, {})
+            if isinstance(preparations, dict):
+                for prep in preparations.values():
+                    if isinstance(prep, dict) and prep.get("status") in {"READY_TO_APPLY", "ANSWERS_READY"}:
+                        prep.update(status="NEEDS_REVIEW", reviewed=False,
+                                    approved_fingerprint=None, profile_change_review_required=True)
+                write_json_atomic(preparation_path, preparations)
+            from job_agent.apply.tracker import load_applications
+            for record in load_applications(data_dir / "applications.json"):
+                if record.status == "ready_to_apply" and record.approval_state == "approved":
+                    _invalidate_tracked_approval(record.job_id)
+        if changed:
+            from job_agent.json_store import read_json, write_json_atomic
+            tailoring_path = out_dir / "tailoring_status.json"
+            tailoring = read_json(tailoring_path, {}) if tailoring_path.exists() else None
+            if isinstance(tailoring, dict):
+                for item in tailoring.values():
+                    if isinstance(item, dict) and item.get("status") == "READY":
+                        item.update(status="NEEDS_REVIEW",
+                                    reason="Developer profile changed; tailor and validate this resume again.")
+                write_json_atomic(tailoring_path, tailoring)
         return {"configured": facts.profile_configured(),
-                "profile": facts.model_dump(mode="json")}
+                "profile": facts.model_dump(mode="json"),
+                "analysis": analyze_profile(facts), "changed": changed}
 
     @app.post("/api/search")
     def run_search(req: SearchRequest) -> dict:
@@ -434,6 +486,8 @@ def create_app(*, data_dir: Path = Path("data"),
                 verification_status=(job.get("verification") or {}).get("status", ""),
                 eligibility_status=(job.get("eligibility") or {}).get("status", ""),
                 match_score=job.get("score"),
+                profile_id=approved.get("profile_id", ""),
+                profile_version=approved.get("profile_version", 0),
                 resume_identity=hashlib.sha256(resume.read_bytes()).hexdigest() if resume else "",
                 resume_version=approved.get("context_fingerprint", ""),
                 answers_identity=approved.get("approved_fingerprint", ""),

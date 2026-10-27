@@ -43,6 +43,13 @@ class Project(BaseModel):
     role: str = ""
     evidence: tuple[str, ...] = ()
     github_url: str | None = None
+    live_url: str | None = None
+    problem_solved: str = ""
+    features: tuple[str, ...] = ()
+    contribution: str = ""
+    ai_ml_usage: str = ""
+    results: tuple[str, ...] = ()
+    relevant_skills: tuple[str, ...] = ()
 
     def has_evidence(self) -> bool:
         return bool(self.name.strip()) and any(source.strip() for source in self.evidence)
@@ -59,10 +66,15 @@ class Employer(BaseModel):
     real_metrics: tuple[str, ...] = ()
     real_skills: tuple[str, ...] = ()
     evidence: tuple[str, ...] = ()
+    experience_type: Literal["employment", "internship", "freelance", "open_source", "hackathon", "leadership", "other"] = "employment"
 
 
 class CareerFacts(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    # A profile is owned by a local user scope; no account/auth assumption.
+    profile_id: str = ""
+    profile_version: int = Field(default=0, ge=0)
 
     # Empty defaults allow the dashboard to initialize an editable profile
     # without inventing personal data. Tailoring still requires usable facts.
@@ -86,6 +98,19 @@ class CareerFacts(BaseModel):
     internship_preference: bool | None = None
     preferred_locations: tuple[str, ...] = ()
     remote_preference: Literal["remote", "hybrid", "onsite", "any"] | None = None
+    work_authorization: dict = Field(default_factory=dict)
+    career_direction: str = ""
+    target_roles: tuple[str, ...] = ()
+    target_industries: tuple[str, ...] = ()
+    preferred_company_types: tuple[str, ...] = ()
+    minimum_compensation: str = ""
+    availability: str = ""
+    internship_duration: str = ""
+    preferred_start_date: str = ""
+    relevant_coursework: tuple[str, ...] = ()
+    github_profile_url: str = ""
+    github_repositories: tuple[dict, ...] = ()
+    achievements: tuple[dict, ...] = ()
     projects: tuple[Project, ...] = ()
     employers: tuple[Employer, ...] = ()
 
@@ -120,6 +145,11 @@ class CareerFacts(BaseModel):
                     or self.career_status or self.current_year or self.expected_graduation
                     or self.experience_years is not None or self.internship_preference is not None
                     or self.remote_preference or self.skills_inventory or self.skill_evidence
+                    or self.work_authorization or self.career_direction or self.target_roles
+                    or self.target_industries or self.preferred_company_types
+                    or self.minimum_compensation or self.availability or self.internship_duration
+                    or self.preferred_start_date or self.relevant_coursework
+                    or self.github_profile_url or self.github_repositories or self.achievements
                     or self.links
                     or self.education or self.education_details or self.projects
                     or self.employers or self.certifications

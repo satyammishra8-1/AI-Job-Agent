@@ -1,6 +1,6 @@
-# job-agent
+# Personal AI Career Agent
 
-An AI job-hunting agent. It discovers roles freshly posted on companies' public
+An AI career agent. It discovers roles freshly posted on companies' public
 Applicant Tracking System (ATS) boards, filters them to what you actually want,
 and uses an LLM to score how well each one fits you — then prints a ranked table.
 
@@ -13,6 +13,23 @@ and uses an LLM to score how well each one fits you — then prints a ranked tab
 > (search / tailor / track / apply), a Chrome MV3 extension that fills forms in
 > your own logged-in browser, an application tracker, and a board-token
 > discovery utility.
+
+## Product workflow
+
+```text
+Create Profile → Profile Intelligence → Find Opportunities → Verify → Match
+→ ATS Tailor → Prepare Application → Human Approval → Apply → Track → Career Insights
+```
+
+The local Developer Profile is the source of truth for personalized search,
+evidence-backed fit explanations, resume tailoring, and application preparation.
+Profile analysis reports actionable missing details and separates claimed skills
+from skills supported by project, experience, credential, or explicit evidence.
+Local profile versions are recorded with approved applications; changing profile
+facts invalidates pending preparation approvals. The profile and matching APIs
+are scoped around a profile identity so future users can have separate profiles
+without changing the core pipeline. Authentication and hosted multi-user storage
+are future work; this release remains local-only.
 
 ## Why this exists
 

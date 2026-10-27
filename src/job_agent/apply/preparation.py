@@ -28,13 +28,14 @@ QUESTIONS = (
 
 
 def _facts_evidence(facts: CareerFacts, bank: AnswerBank) -> list[str]:
+    from job_agent.matching import evidenced_profile_skills
     evidence = []
     evidence.extend(f"Career fact: education {v}" for v in facts.education)
     evidence.extend(f"Career fact: education {v.degree} {v.field}; {', '.join(v.evidence)}" for v in facts.education_details)
     evidence.extend(f"Project: {v.name}; {', '.join(v.evidence)}" for v in facts.projects if v.has_evidence())
     evidence.extend(f"Experience: {v.title} at {v.company}; {', '.join(v.evidence) or ', '.join(v.real_bullets)}" for v in facts.employers)
-    evidence.extend(f"Verified profile skill: {skill}" for skills in facts.skills_inventory.values() for skill in skills)
-    evidence.extend(f"Verified skill evidence: {k}; {', '.join(v)}" for k, v in facts.skill_evidence.items() if v)
+    evidence.extend(f"Verified profile skill: {skill}; {source}"
+                    for skill, source in evidenced_profile_skills(facts).values())
     evidence.extend(f"Certification: {v.name}; {', '.join(v.evidence)}" for v in facts.certifications if v.evidence)
     if facts.expected_graduation:
         evidence.append(f"Career fact: expected graduation {facts.expected_graduation}")
@@ -46,6 +47,12 @@ def _facts_evidence(facts: CareerFacts, bank: AnswerBank) -> list[str]:
         evidence.append(f"Career fact: current study year {facts.current_year}")
     if facts.experience_years is not None:
         evidence.append(f"Career fact: experience years {facts.experience_years:g}")
+    if facts.availability:
+        evidence.append(f"Career fact: availability {facts.availability}")
+    if facts.internship_duration:
+        evidence.append(f"Career preference: preferred internship duration {facts.internship_duration}")
+    if facts.preferred_start_date:
+        evidence.append(f"Career preference: preferred start date {facts.preferred_start_date}")
     for label, value in (("notice period", bank.notice_period),
                          ("earliest start date", bank.earliest_start_date),
                          ("availability", bank.work_mode),
@@ -108,10 +115,15 @@ def generate_preparation(*, path: Path, job: dict, facts: CareerFacts, bank: Ans
             value = "I am interested in internship opportunities." if facts.internship_preference else "Internship availability is not stated in my profile."
             if not facts.internship_preference:
                 missing.append("Confirm internship availability")
+            elif facts.internship_duration:
+                value = f"Preferred internship duration: {facts.internship_duration}."
+        elif key == "notice_availability" and facts.availability:
+            value = facts.availability
         elif key == "notice_availability" and bank.notice_period:
             value = bank.notice_period
         elif key == "technical_skills":
-            supported = sorted(facts.real_skills())
+            from job_agent.matching import evidenced_profile_skills
+            supported = sorted(skill for skill, _ in evidenced_profile_skills(facts).values())
             if supported:
                 jd_lower = jd.lower()
                 matches = [s for s in supported if s.lower() in jd_lower]
@@ -146,6 +158,7 @@ def generate_preparation(*, path: Path, job: dict, facts: CareerFacts, bank: Ans
         msg = f"Hello, I’m interested in the {job.get('title', 'role')} position at {job.get('company', 'your company')}. {msg} I’d welcome the chance to discuss my application."
     cover = next((a["answer"] for a in answers if a["key"] == "interest" and a["answer"]), "")
     preparation = {"job_id": job_id, "status": status, "resume_status": resume_status,
+                   "profile_id": facts.profile_id, "profile_version": facts.profile_version,
                    "answers": answers, "recruiter_message": msg, "cover_note": cover,
                    "recruiter_message_evidence": _evidence_for(msg, evidence),
                    "cover_note_evidence": _evidence_for(cover, evidence),

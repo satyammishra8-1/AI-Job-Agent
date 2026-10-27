@@ -62,6 +62,26 @@ def build_user_prompt(job: Job, profile: SearchProfile,
         profile_lines = [f"Career status: {candidate.career_status or 'not provided'}"]
         if candidate.role:
             profile_lines.append(f"Professional role: {escape(candidate.role)}")
+        if candidate.target_roles:
+            profile_lines.append("Target roles: " + ", ".join(escape(x) for x in candidate.target_roles))
+        if candidate.career_direction:
+            profile_lines.append("Career direction: " + escape(candidate.career_direction))
+        if candidate.target_industries:
+            profile_lines.append("Target industries: " + ", ".join(escape(x) for x in candidate.target_industries))
+        if candidate.preferred_locations:
+            profile_lines.append("Preferred locations: " + ", ".join(escape(x) for x in candidate.preferred_locations))
+        if candidate.remote_preference:
+            profile_lines.append("Preferred work mode: " + candidate.remote_preference)
+        if candidate.availability:
+            profile_lines.append("Availability: " + escape(candidate.availability))
+        if candidate.internship_duration:
+            profile_lines.append("Preferred internship duration: " + escape(candidate.internship_duration))
+        if candidate.minimum_compensation:
+            profile_lines.append("Minimum compensation preference: " + escape(candidate.minimum_compensation))
+        if candidate.preferred_company_types:
+            profile_lines.append("Preferred company types: " + ", ".join(escape(x) for x in candidate.preferred_company_types))
+        if candidate.internship_preference is not None:
+            profile_lines.append("Internship preference: " + ("yes" if candidate.internship_preference else "no"))
         if candidate.current_year:
             profile_lines.append(f"Current study year/semester: {escape(candidate.current_year)}")
         if candidate.expected_graduation is not None:

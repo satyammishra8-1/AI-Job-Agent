@@ -201,7 +201,7 @@ def cmd_search(console: Console, args: argparse.Namespace) -> int:
         except (FileNotFoundError, ValueError) as exc:
             console.print(f"[red]Invalid master profile: {exc}[/red]")
             return 2
-    authorization = None
+    authorization = dict(candidate.work_authorization) if candidate and candidate.work_authorization else None
     answer_path = settings.data_dir / "answer_bank.yaml"
     if answer_path.exists():
         try:
@@ -209,6 +209,7 @@ def cmd_search(console: Console, args: argparse.Namespace) -> int:
 
             bank = load_answer_bank(answer_path)
             authorization = {
+                **(authorization or {}),
                 "authorized_countries": bank.authorized_countries,
                 "authorized_us": bank.authorized_us,
                 "requires_sponsorship": bank.requires_sponsorship,
