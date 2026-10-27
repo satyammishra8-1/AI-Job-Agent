@@ -66,6 +66,34 @@ def test_record_status_is_validated():
         _record(status="on-fire")
 
 
+def test_status_transition_validation_and_event_timeline(tmp_path):
+    from job_agent.apply.tracker import record_event, transition_allowed
+    log = tmp_path / "applications.json"
+    attempt = record_attempt(log, _record(job_id="j1", status="ready_to_apply"))
+    assert transition_allowed("ready_to_apply", "applied")
+    assert not transition_allowed("rejected", "interviewing")
+    update_status(log, attempt, "applied")
+    updated = record_event(log, attempt, "Interview", interview_date="2026-10-27",
+                           interview_type="Technical")
+    assert updated.interview_date == "2026-10-27"
+    assert [e.get("status") or e.get("event") for e in updated.timeline] == [
+        "ready_to_apply", "applied", "Interview"]
+
+
+def test_follow_up_completion_and_reschedule(tmp_path):
+    from job_agent.apply.tracker import upsert_job_state
+    from job_agent.dashboard.service import _needs_follow_up
+    from datetime import datetime, timezone
+    log = tmp_path / "applications.json"
+    record = upsert_job_state(log, job_id="j1", status="applied",
+                              follow_up="2026-10-26", follow_up_note="Check in")
+    assert _needs_follow_up(record, now=datetime(2026, 10, 27, tzinfo=timezone.utc))
+    done = upsert_job_state(log, job_id="j1", follow_up_completed=True)
+    assert not _needs_follow_up(done, now=datetime(2026, 10, 27, tzinfo=timezone.utc))
+    rescheduled = upsert_job_state(log, job_id="j1", follow_up="2026-10-30")
+    assert rescheduled.follow_up_completed is False
+
+
 # --- one record per JOB: re-applying updates, never duplicates -----------------------
 
 def test_reapplying_to_the_same_job_updates_the_one_record(tmp_path):
@@ -251,6 +279,9 @@ class _Page:
         return ""
 
     def evaluate(self, js):
+        if "location.href" in js:
+            return {"url": "http://example.test/apply",
+                    "text": "Application submitted successfully"}
         return []
 
 

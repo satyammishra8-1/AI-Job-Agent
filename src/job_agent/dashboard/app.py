@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, model_validator
 import yaml
 
-from job_agent.apply.tracker import Status, upsert_job_state
+from job_agent.apply.tracker import Status, record_event, upsert_job_state
 from job_agent.dashboard import service
 from job_agent.store import load_job_record, resolve_apply_url
 from job_agent.tailor.career_facts import CareerFacts
@@ -77,12 +77,24 @@ class TrackRequest(BaseModel):
     status: Status | None = None
     notes: str | None = None
     follow_up: str | None = Field(default=None, pattern=r"^(\d{4}-\d{2}-\d{2})?$")
+    follow_up_note: str | None = None
+    follow_up_completed: bool | None = None
 
     @model_validator(mode="after")
     def _keyed(self) -> "TrackRequest":
         if not self.job_id and not self.attempt_id:
             raise ValueError("job_id or attempt_id is required")
         return self
+
+
+class TrackEventRequest(BaseModel):
+    attempt_id: str = Field(min_length=1)
+    event: str = Field(pattern=r"^(follow_up_completed|interview|assessment|offer|rejection|note)$")
+    date: str | None = Field(default=None, pattern=r"^(\d{4}-\d{2}-\d{2})?$")
+    kind: str = ""
+    notes: str = ""
+    outcome: str = ""
+    reason: str = ""
 
 
 def create_app(*, data_dir: Path = Path("data"),
@@ -168,12 +180,40 @@ def create_app(*, data_dir: Path = Path("data"),
 
     preparation_path = data_dir / "application_preparations.json"
 
+    def _invalidate_tracked_approval(job_id: str) -> None:
+        from job_agent.apply.tracker import load_applications, update_application
+
+        records = load_applications(data_dir / "applications.json")
+        tracked = next((r for r in reversed(records)
+                       if r.job_id == job_id and r.status == "ready_to_apply"
+                       and r.approval_state == "approved"), None)
+        if tracked is None:
+            return
+        paused = upsert_job_state(data_dir / "applications.json", job_id=job_id,
+                                  status="paused")
+        update_application(data_dir / "applications.json", paused.attempt_id,
+            approval_state="invalidated", approval_identity="",
+            reason="Prepared content or job context changed; review required")
+
     def _require_prepared_approval(job_id: str) -> str:
         from job_agent.apply.preparation import get_preparation, is_approved
+        from job_agent.json_store import read_json, write_json_atomic
         prep = get_preparation(preparation_path, job_id)
         record = _require_job(job_id)
         resume = service.resume_pdf_path(record, facts_path=facts_path, out_dir=out_dir)
-        if not is_approved(prep, job=record, resume_path=resume):
+        verification = (record.get("verification") or {}).get("status")
+        eligibility = (record.get("eligibility") or {}).get("status")
+        if (verification != "verified" or eligibility != "eligible"
+                or not is_approved(prep, job=record, resume_path=resume)):
+            if prep.get("status") == "READY_TO_APPLY":
+                prep["status"] = "NEEDS_REVIEW"
+                prep["reviewed"] = False
+                prep["approved_fingerprint"] = None
+                data = read_json(preparation_path, {})
+                if isinstance(data, dict):
+                    data[job_id] = prep
+                    write_json_atomic(preparation_path, data)
+            _invalidate_tracked_approval(job_id)
             raise HTTPException(409, "Application preparation must be reviewed and approved in the dashboard first")
         return prep["approved_fingerprint"]
 
@@ -181,6 +221,10 @@ def create_app(*, data_dir: Path = Path("data"),
     def applications() -> dict:
         return service.applications_view(data_dir / "applications.json",
                                          data_dir / "last_search.json")
+
+    @app.get("/api/dashboard/summary")
+    def dashboard_summary() -> dict:
+        return service.dashboard_summary(data_dir / "applications.json")
 
     @app.get("/api/jobs")
     def jobs() -> dict:
@@ -239,11 +283,49 @@ def create_app(*, data_dir: Path = Path("data"),
                 data_dir / "applications.json", job_id=req.job_id,
                 attempt_id=req.attempt_id, company=req.company,
                 title=req.title, source=req.source, status=req.status,
-                notes=req.notes, follow_up=req.follow_up)
+                notes=req.notes, follow_up=req.follow_up,
+                follow_up_note=req.follow_up_note,
+                follow_up_completed=req.follow_up_completed)
         except KeyError as exc:
             raise HTTPException(404, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
         return {**record.model_dump(),
                 "needs_follow_up": service._needs_follow_up(record)}
+
+    @app.post("/api/track/event")
+    def track_event(req: TrackEventRequest) -> dict:
+        from datetime import datetime, timezone
+        from job_agent.apply.tracker import load_applications
+
+        try:
+            current = next(r for r in load_applications(data_dir / "applications.json")
+                           if r.attempt_id == req.attempt_id)
+        except StopIteration as exc:
+            raise HTTPException(404, "Application not found") from exc
+        stamp = req.date or datetime.now(timezone.utc).date().isoformat()
+        mapping = {
+            "follow_up_completed": ("Follow-up completed", {"follow_up_completed": True}),
+            "interview": ("Interview", {"interview_date": stamp, "interview_type": req.kind,
+                "interview_notes": req.notes, "interview_outcome": req.outcome,
+                "status": "interviewing"}),
+            "assessment": ("Assessment", {"assessment_date": stamp, "assessment_type": req.kind,
+                "assessment_notes": req.notes, "assessment_outcome": req.outcome,
+                "status": "assessment"}),
+            "offer": ("Offer", {"offer_date": stamp, "offer_notes": req.notes,
+                "offer_outcome": req.outcome, "status": "offer"}),
+            "rejection": ("Rejection", {"rejection_date": stamp,
+                "rejection_reason": req.reason, "rejection_notes": req.notes,
+                "status": "rejected"}),
+            "note": ("Note added", {"notes": req.notes}),
+        }
+        label, fields = mapping[req.event]
+        if "status" in fields:
+            from job_agent.apply.tracker import transition_allowed
+            if not transition_allowed(current.status, fields["status"]):
+                raise HTTPException(409, f"Invalid status transition: {current.status} -> {fields['status']}")
+        updated = record_event(data_dir / "applications.json", req.attempt_id, label, **fields)
+        return {**updated.model_dump(), "needs_follow_up": service._needs_follow_up(updated)}
 
     @app.get("/api/resume/{job_id}")
     def resume(job_id: str) -> FileResponse:
@@ -267,7 +349,7 @@ def create_app(*, data_dir: Path = Path("data"),
     @app.post("/api/preparation/generate")
     def prepare_application(req: JobRequest) -> dict:
         from job_agent.apply.answer_bank import load_answer_bank
-        from job_agent.apply.preparation import generate_preparation
+        from job_agent.apply.preparation import generate_preparation, get_preparation
         from job_agent.config import load_settings
         from job_agent.tailor.career_facts import load_career_facts
         record = _require_job(req.job_id)
@@ -275,13 +357,17 @@ def create_app(*, data_dir: Path = Path("data"),
                                  out_dir=out_dir)
         job = next((j for j in view["jobs"] if str(j.get("id")) == req.job_id), record)
         try:
+            prior = get_preparation(preparation_path, req.job_id)
             facts = load_career_facts(facts_path)
             bank = load_answer_bank(data_dir / "answer_bank.yaml")
             resume = service.resume_pdf_path(record, facts_path=facts_path, out_dir=out_dir)
-            return generate_preparation(path=preparation_path, job=job, facts=facts,
+            result = generate_preparation(path=preparation_path, job=job, facts=facts,
                 bank=bank, resume_status=job.get("resume_status", "NOT_PREPARED"),
                 settings=load_settings(), jd=record.get("description") or "",
                 resume_path=resume)
+            if prior.get("status") == "READY_TO_APPLY":
+                _invalidate_tracked_approval(req.job_id)
+            return result
         except (ValueError, FileNotFoundError) as exc:
             raise HTTPException(409, str(exc)) from exc
 
@@ -297,9 +383,11 @@ def create_app(*, data_dir: Path = Path("data"),
             record = _require_job(req.job_id)
             facts = load_career_facts(facts_path)
             bank = load_answer_bank(data_dir / "answer_bank.yaml")
-            return update_preparation(preparation_path, req.job_id, updates,
-                                      facts=facts, company=record.get("company", ""),
-                                      bank=bank)
+            result = update_preparation(preparation_path, req.job_id, updates,
+                                        facts=facts, company=record.get("company", ""),
+                                        bank=bank)
+            _invalidate_tracked_approval(req.job_id)
+            return result
         except KeyError as exc:
             raise HTTPException(404, "Application preparation not found") from exc
         except (FileNotFoundError, ValueError) as exc:
@@ -307,9 +395,56 @@ def create_app(*, data_dir: Path = Path("data"),
 
     @app.post("/api/preparation/approve")
     def approve_application(req: PreparationApprovalRequest) -> dict:
-        from job_agent.apply.preparation import approve_preparation
+        import hashlib
+        from job_agent.apply.preparation import (approve_preparation,
+            get_preparation, _context_fingerprint)
+        from job_agent.apply.tracker import update_application
+        from job_agent.store import resolve_apply_url
         try:
-            return approve_preparation(preparation_path, req.job_id)
+            job = _require_job(req.job_id)
+            if ((job.get("verification") or {}).get("status") != "verified"
+                    or (job.get("eligibility") or {}).get("status") != "eligible"):
+                raise HTTPException(409, "Only verified, eligible opportunities can be approved")
+            prep = get_preparation(preparation_path, req.job_id)
+            resume = service.resume_pdf_path(job, facts_path=facts_path, out_dir=out_dir)
+            if prep.get("context_fingerprint") != _context_fingerprint(job, resume):
+                from job_agent.json_store import read_json, write_json_atomic
+                prep["status"] = "NEEDS_REVIEW"
+                prep["reviewed"] = False
+                prep["approved_fingerprint"] = None
+                preparations = read_json(preparation_path, {})
+                if isinstance(preparations, dict):
+                    preparations[req.job_id] = prep
+                    write_json_atomic(preparation_path, preparations)
+                _invalidate_tracked_approval(req.job_id)
+                raise HTTPException(409, "Job or resume changed; regenerate and review this application again")
+            try:
+                application_url = resolve_apply_url(job)
+            except ValueError as exc:
+                raise HTTPException(409, "This opportunity has an unsafe application URL") from exc
+            if not application_url:
+                raise HTTPException(409, "This opportunity has no safe application URL")
+            approved = approve_preparation(preparation_path, req.job_id)
+            tracked = upsert_job_state(
+                data_dir / "applications.json", job_id=req.job_id,
+                company=job.get("company", "Unknown"), title=job.get("title", ""),
+                source=job.get("source", ""), status="ready_to_apply")
+            update_application(data_dir / "applications.json", tracked.attempt_id,
+                application_url=application_url,
+                verification_status=(job.get("verification") or {}).get("status", ""),
+                eligibility_status=(job.get("eligibility") or {}).get("status", ""),
+                match_score=job.get("score"),
+                resume_identity=hashlib.sha256(resume.read_bytes()).hexdigest() if resume else "",
+                resume_version=approved.get("context_fingerprint", ""),
+                answers_identity=approved.get("approved_fingerprint", ""),
+                answers_version=approved.get("approved_fingerprint", ""),
+                submitted_answers={a.get("key", ""): a.get("answer", "")
+                                   for a in approved.get("answers", [])},
+                recruiter_message=approved.get("recruiter_message", ""),
+                cover_note=approved.get("cover_note", ""),
+                approval_identity=approved.get("approved_fingerprint", ""),
+                approval_state="approved")
+            return approved
         except KeyError as exc:
             raise HTTPException(404, "Application preparation not found") from exc
         except ValueError as exc:
@@ -367,6 +502,7 @@ def create_app(*, data_dir: Path = Path("data"),
     @app.post("/api/apply/start")
     def apply_start(req: ApplyJobRequest) -> dict:
         from uuid import uuid4
+        from job_agent.dashboard.apply_session import SubmitBlocked
 
         record = _require_job(req.job_id)
         _require_suspicious_review(record, req.verification_reviewed)
@@ -383,11 +519,28 @@ def create_app(*, data_dir: Path = Path("data"),
             sessions.pop(session_id, None)
             session_jobs.pop(session_id, None)
             session_preparations.pop(session_id, None)
+            try:
+                session.cancel()
+            except Exception:
+                pass
             raise HTTPException(400, str(exc)) from exc
+        except SubmitBlocked as exc:
+            sessions.pop(session_id, None)
+            session_jobs.pop(session_id, None)
+            session_preparations.pop(session_id, None)
+            try:
+                session.cancel()
+            except Exception:
+                pass
+            raise HTTPException(409, str(exc)) from exc
         except Exception:
             sessions.pop(session_id, None)
             session_jobs.pop(session_id, None)
             session_preparations.pop(session_id, None)
+            try:
+                session.cancel()
+            except Exception:
+                pass
             raise
         return {"session_id": session_id, **state}
 
@@ -413,9 +566,10 @@ def create_app(*, data_dir: Path = Path("data"),
             result = session.submit(req.approval_token)  # tied to the reviewed state
         except SubmitBlocked as exc:
             raise HTTPException(409, str(exc)) from exc
-        sessions.pop(req.session_id, None)
-        session_jobs.pop(req.session_id, None)
-        session_preparations.pop(req.session_id, None)
+        if (result.get("result") or {}).get("status") == "submitted":
+            sessions.pop(req.session_id, None)
+            session_jobs.pop(req.session_id, None)
+            session_preparations.pop(req.session_id, None)
         return result
 
     @app.post("/api/apply/cancel")

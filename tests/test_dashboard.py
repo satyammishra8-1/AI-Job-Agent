@@ -57,7 +57,9 @@ def client(tmp_path):
 def test_applications_endpoint_returns_records_and_counts(client):
     data = client.get("/api/applications").json()
     assert data["counts"] == {"total": 3, "submitted": 1, "paused": 1, "failed": 1,
-                              "needs_follow_up": 0}
+                              "ready_to_apply": 0, "applied": 0, "under_review": 0,
+                              "assessment": 0, "interviewing": 0, "offer": 0,
+                              "rejected": 0, "needs_follow_up": 0}
     assert [r["company"] for r in data["records"]] == ["Ramp", "Stripe", "Plaid"]  # newest first
     assert data["records"][1]["status"] == "submitted"
     submitted = data["records"][1]
@@ -413,6 +415,70 @@ def test_records_without_a_job_id_are_updatable_by_attempt_id(tmp_path):
     (rec,) = load_applications(log)
     assert rec.status == "interviewing"
     assert len(load_applications(log)) == 1            # updated, not duplicated
+
+
+def test_tracking_events_record_outcomes_and_followup_completion(tmp_path):
+    from job_agent.apply.tracker import upsert_job_state, load_applications
+    log = tmp_path / "applications.json"
+    rec = upsert_job_state(log, job_id="j1", company="Acme", title="Engineer",
+                           status="applied", follow_up="2026-10-20")
+    client = TestClient(create_app(data_dir=tmp_path))
+    interview = client.post("/api/track/event", json={
+        "attempt_id": rec.attempt_id, "event": "interview", "date": "2026-10-27",
+        "kind": "Technical", "notes": "System design", "outcome": "Scheduled"})
+    assert interview.status_code == 200
+    assert interview.json()["status"] == "interviewing"
+    assert interview.json()["interview_type"] == "Technical"
+    done = client.post("/api/track/event", json={
+        "attempt_id": rec.attempt_id, "event": "follow_up_completed"})
+    assert done.status_code == 200 and done.json()["needs_follow_up"] is False
+    assert [e.get("event") or e.get("status") for e in load_applications(log)[0].timeline] == [
+        "applied", "Interview", "Follow-up completed"]
+
+
+def test_tracker_rejects_an_invalid_outcome_transition(tmp_path):
+    from job_agent.apply.tracker import upsert_job_state
+    rec = upsert_job_state(tmp_path / "applications.json", job_id="j1",
+                           status="rejected")
+    response = TestClient(create_app(data_dir=tmp_path)).post("/api/track/event", json={
+        "attempt_id": rec.attempt_id, "event": "interview"})
+    assert response.status_code == 409
+
+
+def test_today_summary_counts_ready_submitted_followup_stages_and_offers(tmp_path):
+    from job_agent.apply.tracker import upsert_job_state
+    log = tmp_path / "applications.json"
+    for job_id, status, follow_up in (
+        ("ready", "ready_to_apply", ""), ("applied", "applied", "2026-10-20"),
+        ("assessment", "assessment", ""), ("interview", "interviewing", ""),
+        ("offer", "offer", ""),
+    ):
+        upsert_job_state(log, job_id=job_id, status=status, follow_up=follow_up)
+    summary = TestClient(create_app(data_dir=tmp_path)).get("/api/dashboard/summary").json()
+    assert summary == {"ready_to_apply": 1, "applications_submitted": 1,
+        "follow_ups_due": 1, "assessments": 1, "interviews": 1, "offers": 1}
+
+
+def test_prepared_approval_creates_a_fingerprinted_ready_application(tmp_path):
+    from job_agent.apply.preparation import _context_fingerprint
+    from job_agent.apply.tracker import load_applications
+    _seed_last_search(tmp_path / "last_search.json")
+    data = json.loads((tmp_path / "last_search.json").read_text())
+    job = data["jobs"]["j1"]
+    job.update(verification={"status": "verified"}, eligibility={"status": "eligible"},
+               apply_url="https://jobs.example/apply")
+    (tmp_path / "last_search.json").write_text(json.dumps(data))
+    prep = {"job_id": "j1", "status": "ANSWERS_READY", "answers": [],
+            "context_fingerprint": _context_fingerprint(job, None)}
+    (tmp_path / "application_preparations.json").write_text(json.dumps({"j1": prep}))
+    response = TestClient(create_app(data_dir=tmp_path)).post(
+        "/api/preparation/approve", json={"job_id": "j1"})
+    assert response.status_code == 200
+    (application,) = load_applications(tmp_path / "applications.json")
+    assert application.status == "ready_to_apply"
+    assert application.approval_state == "approved"
+    assert application.application_url == job["apply_url"]
+    assert application.answers_identity == response.json()["approved_fingerprint"]
 
 
 def test_track_needs_a_job_id_or_attempt_id(tmp_path):

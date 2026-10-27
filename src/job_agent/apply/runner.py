@@ -76,7 +76,8 @@ def _clear_blockers(page, io: PromptIO) -> bool:
 
 #: SubmitResult.status -> the tracker's status. Dry-run and skip both mean the
 #: application is still with the human ("paused"); only a real send counts.
-_TRACK_STATUS = {"submitted": "submitted", "dry_run": "paused", "skipped": "paused"}
+_TRACK_STATUS = {"submitted": "submitted", "unconfirmed": "paused",
+                 "dry_run": "paused", "skipped": "paused"}
 
 
 def run_apply(cfg: ApplyConfig, io: PromptIO | None = None) -> SubmitResult:

@@ -65,6 +65,7 @@ class _FakePage:
         self.clicked_via = None
         self._type, self._text = type_matches, text_matches
         self.text_queries = []
+        self.confirmation = "Application submitted successfully"
 
     def locator(self, selector):
         return _FakeLocator(self, "type", self._type)
@@ -78,6 +79,10 @@ class _FakePage:
 
     def screenshot(self, path):
         Path(path).write_bytes(b"%PDF-fake-png")
+
+    def evaluate(self, _script):
+        return {"url": "https://jobs.example/confirmation",
+                "text": self.confirmation}
 
 
 def test_dry_run_does_not_click_submit(tmp_path):
@@ -142,6 +147,16 @@ def test_text_fallback_never_runs_on_dry_run_or_skip(tmp_path):
     run_submit(page, PLAN, SKIPPED, submit_flag=True,       # not approved
                submit_selector="#s", screenshot_dir=tmp_path, job_label="J")
     assert page.clicked is False and page.text_queries == []
+
+
+def test_submit_click_without_receipt_is_unconfirmed(tmp_path):
+    page = _FakePage()
+    page.confirmation = "Please complete the required fields"
+    result = run_submit(page, PLAN, APPROVED, submit_flag=True,
+                        submit_selector="#submit", screenshot_dir=tmp_path,
+                        job_label="J")
+    assert result.status == "unconfirmed"
+    assert result.submitted_at is None
 
 
 # --- logging ----------------------------------------------------------------

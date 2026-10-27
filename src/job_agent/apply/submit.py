@@ -24,7 +24,7 @@ from job_agent.apply.review import Decision, ReviewOutcome
 
 @dataclass(frozen=True)
 class SubmitResult:
-    status: str          # "submitted" | "dry_run" | "skipped"
+    status: str          # "submitted" | "unconfirmed" | "dry_run" | "skipped"
     reason: str
     job_label: str = ""
     screenshot: str | None = None
@@ -98,13 +98,31 @@ def run_submit(page, plan: FillPlan, outcome: ReviewOutcome, *, submit_flag: boo
     # Both locks satisfied — this is a real submission.
     stamp = (now or datetime.now(timezone.utc))
     screenshot_dir.mkdir(parents=True, exist_ok=True)
-    shot = screenshot_dir / f"confirmation_{stamp:%Y%m%d_%H%M%S}.png"
+    shot = screenshot_dir / f"submit_result_{stamp:%Y%m%d_%H%M%S}.png"
     find_submit(page, submit_selector).click()
     page.wait_for_timeout(1500)   # let the confirmation render
     page.screenshot(path=str(shot))
+    try:
+        state = page.evaluate("""() => ({url: location.href,
+          text: (document.body && document.body.innerText || '').slice(0, 30000)})""")
+    except Exception:
+        state = None
+    if not isinstance(state, dict):
+        return SubmitResult(status="unconfirmed",
+            reason="submit was clicked, but the application confirmation could not be verified",
+            job_label=job_label, screenshot=str(shot))
+    evidence = (str(state.get("text", "")) + " " + str(state.get("url", ""))).lower()
+    confirmed = any(signal in evidence for signal in (
+        "application submitted", "successfully submitted", "application received",
+        "thank you for applying", "thanks for applying", "your application is complete",
+    ))
+    if not confirmed:
+        return SubmitResult(status="unconfirmed",
+            reason="submit was clicked, but the page did not confirm receipt",
+            job_label=job_label, screenshot=str(shot))
     return SubmitResult(
         status="submitted",
-        reason="approved + --submit; submit clicked",
+        reason="approved + --submit; application receipt confirmed",
         job_label=job_label,
         screenshot=str(shot),
         submitted_at=stamp.isoformat(),

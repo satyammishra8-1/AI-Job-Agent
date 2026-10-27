@@ -146,8 +146,10 @@ def test_suspicious_job_requires_explicit_review_before_opening(env, tmp_path):
 
     reviewed = client.post("/api/apply/open", json={
         "job_id": "j1", "verification_reviewed": True})
-    assert reviewed.status_code == 200
-    assert opened == [JOB["apply_url"]]
+    # The verification change invalidates the old approval fingerprint; this
+    # explicit acknowledgment cannot revive stale prepared content.
+    assert reviewed.status_code == 409
+    assert opened == []
 
 
 # --- the Chrome opener ---------------------------------------------------------

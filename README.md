@@ -334,6 +334,14 @@ tracked state joined in, and drives the same CLI code paths:
   application are hidden from search results by default, in both the CLI and
   the UI. A one-click **Mark applied / Undo** works whether or not autofill
   ever ran.
+- **Phase 6 outcome tracking.** Records remain in the local atomic JSON store
+  and keep the job, safe application URL, verification and eligibility state,
+  match score, resume hash/version, prepared answer snapshot, approval
+  fingerprint, applied time, follow-up details, outcomes, and a chronological
+  timeline. The dashboard supports status filters, newest/follow-up/status
+  sorting, due follow-up counts, interview/assessment/offer/rejection records,
+  and manual status corrections. Follow-up completion only updates local
+  tracking; the agent does not send messages.
 - **Application preparation.** The workflow is Find â†’ Verify â†’ Match â†’ ATS Tailor
   â†’ Validate Resume â†’ Prepare Application â†’ Approve â†’ Apply â†’ Track.
   A verified and eligible role with a validated resume can receive concise,
@@ -342,8 +350,9 @@ tracked state joined in, and drives the same CLI code paths:
   `NEEDS_REVIEW`. The dashboard displays the answer, evidence, missing details,
   and job-specific reason for review. A user must edit/confirm the content and
   explicitly approve the prepared state before either dashboard application
-  route opens. Editing content, changing job details, or changing the resume
-  invalidates that approval. Preparation data is stored locally in
+  route opens. Editing content, changing job identity, URL, verification,
+  eligibility, or changing the resume invalidates that approval and requires
+  review again. Preparation data is stored locally in
   `data/application_preparations.json`.
 - **Apply** opens the job's stored apply URL in **your own Chrome** (real
   profile, extensions loaded — `open -a "Google Chrome"`, falling back to your
@@ -352,6 +361,13 @@ tracked state joined in, and drives the same CLI code paths:
   this path. The previous Playwright-assisted flow — separate visible window,
   in-UI review gate, explicit submit — is still available as **"Open controlled
   window instead"**.
+
+Automatic submission is never performed without explicit user approval for
+that exact reviewed form. A button click without a visible receipt remains unconfirmed in the
+tracker. CAPTCHA, MFA/OTP, authentication, and unexpected website states pause
+for the user; the agent never bypasses them. Application links remain
+restricted to validated public HTTP(S) destinations, and the agent does not
+follow arbitrary links from job descriptions.
 
 **The Chrome MV3 extension** (`extension/`) fills Greenhouse / Ashby / Lever
 application forms in your own logged-in browser, from the same answer bank +

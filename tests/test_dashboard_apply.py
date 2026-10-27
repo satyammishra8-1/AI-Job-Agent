@@ -78,6 +78,15 @@ class _Page:
         return ""
 
     def evaluate(self, js):
+        if "location.href" in js:
+            return {"url": "http://apply.example/j1",
+                    "page_text": "Application submitted successfully",
+                    "text": "Application submitted successfully",
+                    "forms_html": [], "controls": [
+                        {"name": x.get("name", ""), "id": x.get("selector", ""),
+                         "type": x.get("type", ""), "value": "",
+                         "label": x.get("label", "")} for x in self.scan],
+                    "invalid": [], "forms": []}
         return self.scan
 
     def locator(self, selector):
@@ -236,6 +245,11 @@ class _ClosablePage(_Page):
 
     def evaluate(self, js):
         self._check()
+        if "location.href" in js:
+            return {"url": "http://apply.example/j1",
+                    "page_text": "Application submitted successfully",
+                    "text": "Application submitted successfully",
+                    "forms_html": [], "controls": [], "invalid": [], "forms": []}
         return super().evaluate(js)
 
     def locator(self, selector):

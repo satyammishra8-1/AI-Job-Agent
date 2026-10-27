@@ -43,7 +43,8 @@ def _needs_follow_up(record, *, now: datetime | None = None,
     if current.tzinfo is None or current.utcoffset() is None:
         raise ValueError("follow-up calculation requires a timezone-aware datetime")
     today = current.astimezone(_FOLLOW_UP_ZONE).date().isoformat()
-    return bool(record.follow_up) and record.follow_up <= today
+    return (bool(record.follow_up) and not getattr(record, "follow_up_completed", False)
+            and record.follow_up <= today)
 
 
 def _next_action(record, *, needs_follow_up: bool) -> str:
@@ -104,7 +105,8 @@ def applications_view(log_path: str | Path,
         if isinstance(data, dict) and isinstance(data.get("jobs"), dict):
             search_jobs = data["jobs"]
     counts = {"total": len(records)}
-    for status in ("submitted", "paused", "failed"):
+    for status in ("submitted", "paused", "failed", "ready_to_apply", "applied",
+                   "under_review", "assessment", "interviewing", "offer", "rejected"):
         counts[status] = sum(1 for r in records if r.status == status)
     counts["needs_follow_up"] = sum(1 for r in records if _needs_follow_up(r))
     return {
@@ -115,10 +117,25 @@ def applications_view(log_path: str | Path,
                 "next_action": _next_action(r, needs_follow_up=_needs_follow_up(r)),
                 "job_url": (search_jobs.get(r.job_id) or {}).get("url"),
                 "match_score": (search_jobs.get(r.job_id) or {}).get("score"),
+                "job_verification": ((search_jobs.get(r.job_id) or {}).get("verification") or {}).get("status"),
+                "timeline": sorted(r.timeline, key=lambda e: e.get("at", "")),
             }
             for r in records
         ],
         "counts": counts,
+    }
+
+
+def dashboard_summary(log_path: str | Path) -> dict:
+    """Actionable Today counts derived only from saved local records."""
+    records = _dedupe_jobs(load_applications(log_path))
+    return {
+        "ready_to_apply": sum(r.status == "ready_to_apply" for r in records),
+        "applications_submitted": sum(r.status in {"applied", "submitted"} for r in records),
+        "follow_ups_due": sum(_needs_follow_up(r) for r in records),
+        "assessments": sum(r.status == "assessment" for r in records),
+        "interviews": sum(r.status == "interviewing" for r in records),
+        "offers": sum(r.status == "offer" for r in records),
     }
 
 
@@ -220,8 +237,15 @@ def jobs_view(last_search_path: str | Path,
             markers, job_id=str(j.get("id")), company=j.get("company", ""),
             title=j.get("title", ""))
         prep = prep_records.get(str(j.get("id")), {})
-        j["preparation_status"] = (prep.get("status") if isinstance(prep, dict)
-                                    and prep.get("status") != "NOT_READY" else
+        prep_status = prep.get("status") if isinstance(prep, dict) else None
+        if prep_status == "READY_TO_APPLY":
+            from job_agent.apply.preparation import is_approved
+            live_resume = (_tailored_resume_path(j, facts=facts, out_dir=out_dir)
+                           if facts is not None and out_dir is not None else None)
+            if not is_approved(prep, job=j, resume_path=live_resume):
+                prep_status = "NEEDS_REVIEW"
+        j["preparation_status"] = (prep_status if prep_status
+                                    and prep_status != "NOT_READY" else
                                     "RESUME_READY" if j.get("resume_status") == "READY"
                                     else "NOT_READY")
     return {"generated_at": data.get("generated_at"),
@@ -432,6 +456,9 @@ def start_apply_session(job_id: str, *, data_dir: Path, facts_path: Path,
 
     inputs = _assemble_apply_inputs(job_id, data_dir=data_dir,
                                     facts_path=facts_path, out_dir=out_dir)
+    from job_agent.apply.preparation import get_preparation
+    preparation = get_preparation(data_dir / "application_preparations.json", job_id)
     return ApplySession(tracker_path=data_dir / "applications.json",
                         out_dir=data_dir / "apply",
-                        verification_reviewed=verification_reviewed, **inputs)
+                        verification_reviewed=verification_reviewed,
+                        preparation=preparation, **inputs)

@@ -217,7 +217,9 @@ def fingerprint(prep: dict) -> str:
 
 
 def _context_fingerprint(job: dict, resume_path: Path | None) -> str:
-    state = {key: job.get(key) for key in ("id", "title", "company", "description", "url", "apply_url")}
+    state = {key: job.get(key) for key in (
+        "id", "title", "company", "description", "url", "apply_url",
+        "source", "verification", "eligibility")}
     if resume_path and resume_path.exists():
         state["resume_sha256"] = hashlib.sha256(resume_path.read_bytes()).hexdigest()
     return hashlib.sha256(json.dumps(state, sort_keys=True, ensure_ascii=True, default=str).encode()).hexdigest()

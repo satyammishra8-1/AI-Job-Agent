@@ -23,6 +23,7 @@ from __future__ import annotations
 import threading
 import hashlib
 import json
+import uuid
 from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,9 +37,10 @@ from job_agent.apply.review import Decision, ReviewOutcome
 from job_agent.apply.runner import _SUBMIT_SELECTOR, _TRACK_STATUS
 from job_agent.apply.screening import apply_drafts
 from job_agent.apply.submit import log_result, run_submit
-from job_agent.apply.tracker import ApplicationRecord, record_attempt, update_status
+from job_agent.apply.tracker import (ApplicationRecord, record_attempt,
+                                    update_application, update_status)
 from job_agent.dashboard.service import serialize_plan
-from job_agent.store import resolve_apply_url
+from job_agent.store import resolve_apply_url, validate_application_url
 
 _CALL_TIMEOUT_S = 600   # a single step may include slow page loads / an LLM draft
 
@@ -80,7 +82,7 @@ class ApplySession:
     def __init__(self, *, record: dict, bank, contact, resume_path: Path | None,
                  drafter, tracker_path: Path, out_dir: Path,
                  browser_factory=None, submit_selector: str = _SUBMIT_SELECTOR,
-                 verification_reviewed: bool = False):
+                 verification_reviewed: bool = False, preparation: dict | None = None):
         verification = record.get("verification") or {}
         if (isinstance(verification, dict)
                 and verification.get("status") == "suspicious"
@@ -88,6 +90,7 @@ class ApplySession:
             raise ValueError(
                 "suspicious job requires explicit human review before opening an application")
         self._record = record
+        self._preparation = preparation or {}
         self._verification_reviewed = verification_reviewed
         self._bank, self._contact = bank, contact
         self._resume_path, self._drafter = resume_path, drafter
@@ -164,10 +167,30 @@ class ApplySession:
             job_id=str(self._record.get("id", "")),
             date=datetime.now(timezone.utc).isoformat(),
             source=self._record.get("source", ""),
-            status="paused", reason="in dashboard review"))
+            status="paused", reason="in dashboard review",
+            application_id=uuid.uuid4().hex,
+            application_url=resolve_apply_url(self._record) or "",
+            verification_status=(self._record.get("verification") or {}).get("status", ""),
+            eligibility_status=(self._record.get("eligibility") or {}).get("status", ""),
+            match_score=self._record.get("score"),
+            resume_identity=(hashlib.sha256(self._resume_path.read_bytes()).hexdigest()
+                             if self._resume_path and self._resume_path.exists() else ""),
+            resume_version=self._preparation.get("context_fingerprint", ""),
+            answers_identity=self._preparation.get("approved_fingerprint", ""),
+            answers_version=self._preparation.get("approved_fingerprint", ""),
+            submitted_answers={a.get("key", ""): a.get("answer", "")
+                               for a in self._preparation.get("answers", [])},
+            recruiter_message=self._preparation.get("recruiter_message", ""),
+            cover_note=self._preparation.get("cover_note", ""),
+            approval_identity=self._preparation.get("approved_fingerprint", ""),
+            approval_state="approved" if self._preparation.get("approved_fingerprint") else "",
+            timeline=[{"event": "Application review opened",
+                       "at": datetime.now(timezone.utc).isoformat()}]))
         # VISIBLE by definition: the human acts in this window (captcha, consent).
         self._page = stack.enter_context(self._browser_factory(headless=False))
-        self._page.goto(resolve_apply_url(self._record), wait_until="load")
+        start_url = validate_application_url(resolve_apply_url(self._record) or "")
+        self._page.goto(start_url, wait_until="load")
+        self._validate_live_destination(start_url)
         self._read_and_fill()
         return self._state()
 
@@ -255,7 +278,34 @@ class ApplySession:
                 raise SubmitBlocked("the browser window was closed; nothing was submitted") from exc
             raise
 
+    def _validate_live_destination(self, expected_url: str | None = None) -> None:
+        from urllib.parse import urlsplit
+
+        try:
+            current = validate_application_url(getattr(self._page, "url", expected_url) or "")
+        except ValueError as exc:
+            raise SubmitBlocked("application page has an unsafe or malformed destination") from exc
+        if expected_url:
+            expected = urlsplit(expected_url)
+            actual = urlsplit(current)
+            if (actual.scheme, actual.hostname, actual.port) != (expected.scheme, expected.hostname, expected.port):
+                raise SubmitBlocked("application page redirected to a different destination; review it manually")
+        state = self._browser_state()
+        for form in state.get("forms", []) if isinstance(state, dict) else []:
+            action = form.get("action")
+            if action:
+                try:
+                    safe_action = validate_application_url(action)
+                except ValueError as exc:
+                    raise SubmitBlocked("application form has an unsafe or malformed destination") from exc
+                parsed_action, parsed_page = urlsplit(safe_action), urlsplit(current)
+                if (parsed_action.scheme, parsed_action.hostname, parsed_action.port) != (
+                        parsed_page.scheme, parsed_page.hostname, parsed_page.port):
+                    raise SubmitBlocked("application form submits to a different destination; review it manually")
+
     def _review_digest(self) -> str:
+        original = validate_application_url(resolve_apply_url(self._record) or "")
+        self._validate_live_destination(original)
         state = {
             "job_id": str(self._record.get("id", "")),
             "company": self._record.get("company", ""),
@@ -308,9 +358,26 @@ class ApplySession:
                 "the browser window was closed — nothing was submitted; "
                 "cancel and start apply again") from exc
         log_result(result, self._out_dir / "apply_log.jsonl")
+        if result.status == "submitted":
+            controls = browser_state.get("controls", []) if isinstance(browser_state, dict) else []
+            excluded = ("password", "otp", "one-time", "token", "captcha", "ssn", "social security")
+            exact_answers = {}
+            for control in controls:
+                identity = " ".join(str(control.get(k, "")) for k in
+                                    ("name", "id", "label", "placeholder")).strip()
+                if (control.get("type", "").lower() == "password"
+                        or any(term in identity.lower() for term in excluded)):
+                    continue
+                value = control.get("value") or control.get("text") or ""
+                if value:
+                    exact_answers[identity or f"field-{len(exact_answers) + 1}"] = str(value)
+            update_application(self._tracker_path, self._attempt_id,
+                submitted_answers=exact_answers,
+                submission_approval=hashlib.sha256(approval_token.encode()).hexdigest())
         update_status(self._tracker_path, self._attempt_id,
                       _TRACK_STATUS.get(result.status, "paused"), result.reason)
-        self._closed = True
+        if result.status == "submitted":
+            self._closed = True
         return {"result": {"status": result.status, "reason": result.reason,
                            "screenshot": result.screenshot}, **self._state()}
 

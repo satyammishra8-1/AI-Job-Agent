@@ -344,7 +344,8 @@
       <label>Status <select id="af-status"><option value="">all</option></select></label>
       <label>Source <select id="af-source"><option value="">all</option></select></label>
       <label>Sort <select id="af-sort">
-        <option value="date">newest</option><option value="company">company</option>
+        <option value="date">newest</option><option value="followup">follow-up due</option>
+        <option value="status">status</option>
       </select></label>
     </div>
     <div class="card tablewrap"><div id="apps-table"></div></div>
@@ -468,15 +469,20 @@ function renderToday() {
     : JOB_META ? String(newCount) : "—";
   const ready = APPS.filter((r) => r.status === "ready_to_apply").length;
   const followups = APPS.filter((r) => r.needs_follow_up).length;
-  const interviewStages = APPS.filter((r) =>
-    ["assessment", "interviewing"].includes(r.status)).length;
+  const submitted = APPS.filter((r) => ["applied", "submitted"].includes(r.status)).length;
+  const assessments = APPS.filter((r) => r.status === "assessment").length;
+  const interviews = APPS.filter((r) => r.status === "interviewing").length;
+  const offers = APPS.filter((r) => r.status === "offer").length;
   const cards = [
     [openCount, "Opportunities to review", "All current results, across match scores", "#sec-jobs"],
     [newValue, "New this scan", JOB_META === null ? "Run a search to see new roles"
       : JOB_META.new_count === null ? "Baseline scan" : "First seen in this scan", "#sec-jobs"],
     [ready, "Ready to apply", "Marked ready in your tracker", "#sec-apps"],
+    [submitted, "Applications submitted", "Confirmed or manually recorded", "#sec-apps"],
     [followups, "Follow-ups due", "Needs a follow-up today", "#sec-apps"],
-    [interviewStages, "Interviews and assessments", "Tracked next stages", "#sec-apps"],
+    [assessments, "Assessments", "Assessment stages to prepare", "#sec-apps"],
+    [interviews, "Interviews", "Interview stages to prepare", "#sec-apps"],
+    [offers, "Offers", "Offers to review", "#sec-apps"],
   ];
   $("#today-summary").innerHTML = cards.map((c) =>
     '<a class="today-card" href="' + c[3] + '"><div class="today-value">' + esc(c[0]) +
@@ -488,8 +494,12 @@ function renderApps() {
   renderTiles();
   const st = $("#af-status").value, src = $("#af-source").value, sort = $("#af-sort").value;
   let rows = APPS.filter((r) => (!st || r.status === st) && (!src || r.source === src));
-  rows = rows.slice().sort((a, b) => sort === "company"
-    ? a.company.localeCompare(b.company) : b.date.localeCompare(a.date));
+  const statusOrder = ["ready_to_apply", "applied", "submitted", "under_review", "assessment", "interviewing", "offer", "rejected", "withdrawn", "saved", "paused", "failed"];
+  rows = rows.slice().sort((a, b) => sort === "followup"
+    ? ((a.follow_up && !a.follow_up_completed) ? a.follow_up : "9999-99-99")
+        .localeCompare((b.follow_up && !b.follow_up_completed) ? b.follow_up : "9999-99-99")
+    : sort === "status" ? statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
+      : b.date.localeCompare(a.date));
   if (!rows.length) {
     $("#apps-table").innerHTML = APPS.length
       ? '<div class="empty"><h3>No applications match these filters.</h3><p>Clear a filter or choose all to see your tracked opportunities.</p></div>'
@@ -511,7 +521,11 @@ function renderApps() {
       '<div class="app-details"><span>Tracked: ' + esc((r.date || "").slice(0, 10)) + '</span><span>Source: ' + esc(r.source) + '</span>' +
       match + jobLink +
       '<span>Follow up: ' + (esc(r.follow_up) || "?") + '</span>' +
+      '<span>Verification: ' + esc(r.verification_status || r.job_verification || "unknown") + '</span>' +
+      (r.applied_at ? '<span>Applied: ' + esc(r.applied_at.slice(0, 10)) + '</span>' : '') +
       (r.notes ? '<span class="note-preview" title="' + esc(r.notes) + '">Note: ' + esc(r.notes) + '</span>' : '') + '</div>' +
+      '<details><summary>Timeline</summary><div class="app-details">' + (r.timeline || []).map((e) =>
+        '<span>' + esc((e.at || "").slice(0, 10)) + ' · ' + esc(e.event || e.status || "Updated") + '</span>').join("") + '</div></details>' +
       '<div class="app-next"><b>Next action</b> · ' + esc(r.next_action || "Review application status") + '</div>' +
       '<div style="margin-top:10px">' + followFlag(r) + '</div></div>' +
       '<div class="app-side">' + statusSelect(r.job_id, r.status, meta, r.attempt_id) +
@@ -531,6 +545,14 @@ function editorHtml(key, r, meta, ids = null) {
     <div class="editor-side">
       <label>Follow up by</label>
       <input type="date" data-followup="${esc(key)}" value="${esc(r?.follow_up || "")}">
+      <label>Follow-up note</label>
+      <input data-followup-note="${esc(key)}" value="${esc(r?.follow_up_note || "")}">
+      ${r?.follow_up && !r.follow_up_completed ? `<button data-follow-complete="${esc(key)}" data-attempt="${esc(r.attempt_id || "")}">Mark follow-up done</button>` : ""}
+      <label>Outcome date</label><input type="date" data-outcome-date="${esc(key)}">
+      <label>Round or assessment type</label><input data-outcome-kind="${esc(key)}">
+      <label>Outcome notes</label><input data-outcome-notes="${esc(key)}">
+      <label>Outcome</label><input data-outcome-result="${esc(key)}">
+      ${["interview", "assessment", "offer", "rejection"].map((ev) => `<button data-event="${ev}" data-attempt="${esc(r?.attempt_id || "")}" data-key="${esc(key)}">Record ${ev}</button>`).join(" ")}
       <button class="primary" data-save="${esc(key)}" data-ids='${esc(JSON.stringify(ids))}'
         data-meta='${esc(JSON.stringify(meta))}'>Save</button>
       <span class="inline-out" data-saveout="${esc(key)}"></span>
@@ -1149,8 +1171,22 @@ document.addEventListener("click", (ev) => {
     saveTrack(JSON.parse(t.dataset.ids || "{}"), {
       notes: document.querySelector(`[data-notes="${id}"]`).value,
       follow_up: document.querySelector(`[data-followup="${id}"]`).value || "",
+      follow_up_note: document.querySelector(`[data-followup-note="${id}"]`).value,
     }, JSON.parse(t.dataset.meta || "{}"),
        document.querySelector(`[data-saveout="${id}"]`));
+  }
+  if (t.dataset.followComplete) {
+    post("/api/track/event", {attempt_id:t.dataset.attempt, event:"follow_up_completed"})
+      .then(loadApps).catch((e) => toast("Could not complete follow-up: " + e.message));
+  }
+  if (t.dataset.event) {
+    const k = t.dataset.key;
+    post("/api/track/event", {attempt_id:t.dataset.attempt, event:t.dataset.event,
+      date:document.querySelector(`[data-outcome-date="${k}"]`).value || null,
+      kind:document.querySelector(`[data-outcome-kind="${k}"]`).value,
+      notes:document.querySelector(`[data-outcome-notes="${k}"]`).value,
+      outcome:document.querySelector(`[data-outcome-result="${k}"]`).value})
+      .then(loadApps).catch((e) => toast("Could not record outcome: " + e.message));
   }
 });
 document.addEventListener("change", (ev) => {
