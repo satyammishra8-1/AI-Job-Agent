@@ -310,6 +310,82 @@
   .profile-editor-guide { margin:12px 0; padding:14px; border-radius:10px; background:#f7f8fc; }
   .profile-editor-guide p { margin:5px 0 10px; color:var(--muted); font-size:12px; }
   #profile-status { line-height:1.7; }
+  #sec-profile { max-width:1000px; margin-top:20px; }
+  .profile-page-header { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:7px 0 22px; }
+  .profile-page-header h2 { margin:4px 0 6px; font-size:30px; letter-spacing:-.035em; }
+  .profile-page-header p { color:var(--muted); font-size:14px; }
+  .profile-header-actions { display:flex; align-items:center; gap:12px; flex-shrink:0; }
+  .profile-strength-badge { display:inline-flex; padding:7px 11px; border-radius:99px; color:#5b6472; background:#f0f2f5; font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }
+  .profile-strength-badge[data-strength="developing"] { color:#8a5b14; background:#fff5df; }
+  .profile-strength-badge[data-strength="strong"] { color:#176b4b; background:#e6f6ef; }
+  .profile-onboarding { margin:0; padding:22px; border:1px solid #e0e4ee; border-radius:16px; background:#fff; box-shadow:var(--shadow); }
+  .profile-health-top { display:grid; grid-template-columns:minmax(180px,.8fr) minmax(0,1.8fr); gap:24px; align-items:center; }
+  .profile-onboarding-steps { display:flex; flex-wrap:wrap; gap:8px; margin-top:15px; }
+  .profile-onboarding-steps span { padding:6px 9px; border:1px solid var(--border-soft); border-radius:99px; color:var(--muted); background:#fff; font-size:11px; }
+  .profile-onboarding-steps span.is-done { color:#176b4b; border-color:#d6efe3; background:#f2fbf6; }
+  .profile-health-label,.metric-label,.intel-label { color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.065em; text-transform:uppercase; }
+  .profile-health-value { margin:4px 0 8px; font-size:24px; font-weight:750; letter-spacing:-.03em; }
+  .profile-health-copy { color:var(--muted); font-size:13px; }
+  .profile-completion { margin-top:12px; color:var(--ink); font-size:13px; font-weight:700; }
+  .profile-completion-track { height:8px; margin-top:7px; overflow:hidden; border-radius:99px; background:#eceff4; }
+  .profile-completion-track i { display:block; height:100%; border-radius:99px; background:var(--accent); }
+  .profile-health-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:20px; }
+  .profile-metric { min-width:0; padding:12px 14px; border:1px solid var(--border-soft); border-radius:12px; background:#fcfcfd; }
+  .profile-metric strong { display:block; margin-top:4px; overflow-wrap:anywhere; font-size:17px; }
+  .profile-next-step { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:14px; padding:14px 16px; border-radius:12px; background:#f7f8fc; }
+  .profile-next-step strong { display:block; margin-bottom:2px; font-size:13px; }
+  .profile-next-step p { color:var(--muted); font-size:12px; }
+  .profile-section-block { margin:28px 0 0 !important; padding:0 !important; border:0 !important; }
+  .profile-section-title { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+  .profile-section-title h3 { font-size:19px; letter-spacing:-.02em; }
+  .profile-section-title p { margin-top:3px; color:var(--muted); font-size:13px; }
+  .snapshot-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+  .snapshot-item { min-width:0; padding:13px 15px; border:1px solid var(--border-soft); border-radius:12px; background:#fff; }
+  .snapshot-item span { display:block; color:var(--muted); font-size:12px; }
+  .snapshot-item strong { display:block; margin-top:4px; overflow-wrap:anywhere; font-size:14px; font-weight:650; }
+  .profile-skill-group { margin-bottom:14px; padding:15px; border:1px solid var(--border-soft); border-radius:13px; background:#fff; }
+  .profile-skill-group h4 { margin-bottom:9px; font-size:13px; }
+  .profile-chip { margin:3px 5px 3px 0; }
+  .profile-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .profile-data-card { min-width:0; padding:17px; border:1px solid var(--border-soft); border-radius:14px; background:#fff; box-shadow:var(--shadow); }
+  .profile-data-card h4 { margin-bottom:6px; font-size:15px; }
+  .profile-data-card p { margin-top:6px; color:var(--muted); font-size:13px; overflow-wrap:anywhere; }
+  .profile-data-card .profile-card-links { display:flex; flex-wrap:wrap; gap:12px; margin-top:13px; font-size:12px; }
+  .profile-empty { padding:18px; border:1px dashed #d9dde6; border-radius:13px; background:#fff; }
+  .profile-empty strong { display:block; margin-bottom:5px; font-size:14px; }
+  .profile-empty p { max-width:620px; color:var(--muted); font-size:13px; }
+  .intelligence-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+  .intelligence-card { padding:15px; border:1px solid var(--border-soft); border-radius:13px; background:#fff; }
+  .intelligence-card strong { display:block; margin-top:7px; font-size:14px; overflow-wrap:anywhere; }
+  .intel-missing { grid-column:1 / -1; padding:15px; border:1px solid var(--border-soft); border-radius:13px; background:#fff; }
+  .profile-missing-list { margin:8px 0 0; }
+  .profile-missing-list li { color:var(--muted); font-size:12px; }
+  .profile-next-step.is-recommendation { border:1px solid #e4e7f0; background:#fff; }
+  .profile-editor-shell { display:grid; grid-template-columns:190px minmax(0,1fr); overflow:hidden; border:1px solid var(--border); border-radius:15px; background:#fff; box-shadow:var(--shadow); }
+  .profile-editor-shell[hidden] { display:none; }
+  .profile-editor-nav { display:grid; align-content:start; gap:4px; padding:13px; border-right:1px solid var(--border-soft); background:#fafbfc; }
+  .profile-editor-nav button { text-align:left; box-shadow:none; border-color:transparent; background:transparent; }
+  .profile-editor-nav button[aria-current="step"] { color:var(--accent); border-color:#e2e4fa; background:#f0f1ff; }
+  .profile-editor-content { min-width:0; padding:20px; }
+  .profile-editor-content h4 { margin-bottom:4px; font-size:18px; }
+  .profile-editor-content > p { margin-bottom:18px; color:var(--muted); font-size:13px; }
+  .profile-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  .profile-form-field { display:grid; align-content:start; gap:5px; min-width:0; }
+  .profile-form-field.is-wide { grid-column:1 / -1; }
+  .profile-form-field label,.profile-form-label { color:#3f4755; font-size:12px; font-weight:650; }
+  .profile-form-field small { color:var(--muted); font-size:11px; }
+  .profile-form-field input,.profile-form-field select,.profile-form-field textarea,.record-field input,.record-field textarea { width:100%; min-width:0; padding:9px 10px; border:1px solid #dfe3e9; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
+  .profile-form-field textarea,.record-field textarea { min-height:82px; resize:vertical; }
+  .profile-record-list { display:grid; gap:11px; }
+  .profile-record { padding:14px; border:1px solid var(--border-soft); border-radius:12px; background:#fcfcfd; }
+  .profile-record-head { display:flex; justify-content:space-between; gap:10px; margin-bottom:11px; }
+  .profile-record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+  .record-field { display:grid; gap:5px; min-width:0; }
+  .record-field.is-wide { grid-column:1 / -1; }
+  .record-field label { color:#3f4755; font-size:11px; font-weight:650; }
+  .profile-editor-add { margin-top:10px; }
+  .profile-editor-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px; padding-top:14px; border-top:1px solid var(--border-soft); }
+  #profile-status { flex-basis:100%; }
   .profile-section-card h3,.insight-card h3 { margin:0 0 10px; font-size:14px; }
   .profile-section-card p,.profile-section-card li,.insight-card p,.detail-block p,.detail-block li { color:var(--muted); font-size:12px; }
   .profile-section-card ul,.detail-block ul { margin:0; padding-left:18px; display:grid; gap:6px; }
@@ -329,6 +405,12 @@
   :focus-visible { outline:3px solid #a5a6f1; outline-offset:2px; }
   @media (max-width:850px) {
     body { padding:0 18px 88px; } .sidebar { display:none; }
+    .profile-health-top { grid-template-columns:1fr; gap:14px; }
+    .profile-card-grid { grid-template-columns:1fr; }
+    .intelligence-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .profile-editor-shell { grid-template-columns:1fr; }
+    .profile-editor-nav { display:flex; overflow:auto; border-right:0; border-bottom:1px solid var(--border-soft); }
+    .profile-editor-nav button { flex:0 0 auto; }
     .mobile-header { position:sticky; top:0; z-index:25; display:flex; align-items:center; gap:10px; margin:0 -18px 18px; padding:12px 18px; background:rgba(255,255,255,.96); border-bottom:1px solid var(--border); }
     .mobile-header .brand-mark { width:32px; height:32px; border-radius:10px; }
     .mobile-title { font-size:13px; font-weight:750; } .mobile-status { margin-left:auto; color:var(--muted); font-size:10px; }
@@ -342,6 +424,15 @@
     .recommendation-score { align-items:flex-start; border:0; border-top:1px solid var(--border-soft); padding-top:12px; flex-direction:row; gap:8px; }
     .recommendation-score strong { font-size:25px; }
     .profile-workspace,.insights-grid,.detail-grid { grid-template-columns:1fr; }
+    .profile-page-header { align-items:flex-start; flex-direction:column; gap:14px; }
+    .profile-page-header h2 { font-size:26px; }
+    .profile-header-actions { width:100%; justify-content:space-between; }
+    .profile-onboarding { padding:16px; }
+    .profile-health-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .snapshot-grid,.intelligence-grid,.profile-form-grid,.profile-record-grid { grid-template-columns:1fr; }
+    .profile-next-step { align-items:flex-start; flex-direction:column; }
+    .profile-section-title { align-items:flex-start; }
+    .profile-editor-content { padding:14px; }
     .today-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .today-card { padding:12px; } .today-value { font-size:20px; }
     .job-card { grid-template-columns:1fr; } .scorebox { grid-row:1; flex-direction:row; }
@@ -440,23 +531,16 @@
 
 <!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
 <section id="sec-profile" data-page="profile">
-  <div class="section-heading"><div><h2>My Profile</h2><div class="sec-sub">Your AI career profile · the foundation of personalized opportunities.</div></div><b id="profile-completeness-head" class="pill p-needs_review">Profile incomplete</b></div>
-  <div class="card profile-onboarding" id="profile-onboarding" aria-live="polite"></div>
-  <div class="profile-workspace" id="profile-workspace"></div>
-  <div class="section-heading" style="margin-top:25px"><div><h2>Profile intelligence</h2><div class="sec-sub">A transparent summary based on the evidence you have added.</div></div></div>
-  <div class="card profile-section-card" id="profile-intelligence"></div>
-  <div class="section-heading" style="margin-top:25px"><div><h2>Edit your profile</h2><div class="sec-sub">Missing information remains unknown until you add it.</div></div></div>
-  <div class="card" style="padding:16px">
-    <div class="toolbar"><label>Profile section <select id="profile-section">
-      <option value="overview">Overview</option><option value="skills">Skills</option>
-      <option value="projects">Projects</option><option value="education">Education</option>
-      <option value="experience">Experience & achievements</option><option value="preferences">Career preferences</option>
-      <option value="evidence">Evidence & GitHub</option>
-    </select></label></div>
-    <div class="profile-editor-guide" id="profile-section-help"></div>
-    <textarea id="profile-json" aria-label="Selected developer profile section JSON" rows="16" spellcheck="false" style="width:100%;font:12px/1.5 ui-monospace,monospace"></textarea>
-    <div class="toolbar"><button class="primary" id="profile-save">Save profile</button><span id="profile-status" aria-live="polite"></span></div>
-  </div>
+  <div class="profile-page-header"><div><div class="eyebrow">PERSONAL CAREER WORKSPACE</div><h2>My Career Profile</h2><p>Your profile powers personalized job discovery, matching, applications, and career insights.</p></div><div class="profile-header-actions"><span id="profile-completeness-head" class="profile-strength-badge">Incomplete</span><button class="primary" data-profile-section="overview">Improve Profile</button></div></div>
+  <div class="profile-onboarding" id="profile-onboarding" aria-live="polite"></div>
+  <section class="profile-section-block"><div class="profile-section-title"><div><h3>Career Snapshot</h3><p>A clear view of your professional direction and preferences.</p></div><button class="ghost" data-profile-section="overview">Edit</button></div><div class="snapshot-grid" id="profile-snapshot"></div></section>
+  <section class="profile-section-block"><div class="profile-section-title"><div><h3>Skills &amp; Evidence</h3><p>Skills supported by your projects, experience, and other evidence.</p></div><button class="ghost" data-profile-section="skills">Add Skills</button></div><div id="profile-skills"></div></section>
+  <section class="profile-section-block"><div class="profile-section-title"><div><h3>Projects</h3><p>Projects are one of the strongest sources of evidence in your profile.</p></div><button class="ghost" data-profile-section="projects">Add Project</button></div><div id="profile-projects" class="profile-card-grid"></div></section>
+  <section class="profile-section-block"><div class="profile-section-title"><div><h3>Experience &amp; Achievements</h3><p>Professional, community, and leadership work can support your profile.</p></div><button class="ghost" data-profile-section="experience">Add Experience</button></div><div id="profile-experience" class="profile-card-grid"></div></section>
+  <section class="profile-section-block"><div class="profile-section-title"><div><h3>Education</h3><p>Education and coursework can strengthen eligibility matching.</p></div><button class="ghost" data-profile-section="education">Add Education</button></div><div id="profile-education"></div></section>
+  <section class="profile-section-block"><div class="profile-section-title"><div><h3>How your AI Career Agent sees you</h3><p>Transparent analysis based only on the evidence in your profile.</p></div></div><div id="profile-intelligence" class="intelligence-grid"></div><div id="profile-next-step" class="profile-next-step"></div></section>
+  <section class="profile-section-block profile-editor-section"><div class="profile-section-title"><div><h3>Edit your profile</h3><p>Choose one section. Unknown details can stay blank.</p></div><button class="primary" id="profile-editor-toggle" aria-expanded="false">Open profile editor</button></div>
+    <div class="profile-editor-shell" id="profile-editor" hidden><nav class="profile-editor-nav" id="profile-editor-nav" aria-label="Profile editor sections"></nav><div class="profile-editor-content"><div id="profile-editor-panel"></div><div class="profile-editor-actions"><button type="button" class="ghost" id="profile-cancel">Cancel</button><button type="button" class="primary" id="profile-save">Save Changes</button><span id="profile-status" aria-live="polite"></span></div></div></div>
 </section>
 
 <section id="sec-pipeline" data-page="profile">
@@ -492,6 +576,36 @@ const PROFILE_SECTIONS = {
   preferences: ["target_roles", "target_industries", "career_direction", "preferred_locations", "remote_preference", "internship_preference", "preferred_company_types", "minimum_compensation", "availability", "internship_duration", "preferred_start_date", "work_authorization"],
   evidence: ["links", "github_profile_url", "github_repositories"]
 };
+const PROFILE_FORM_SECTIONS = {
+  overview: {title:"Overview", description:"Basic details and career stage help your agent understand your background.", fields:[
+    ["name","Full name","text"],["email","Email","email"],["phone","Phone","tel"],["location","Current location","text"],
+    ["role","Current or target role","text"],["career_status","Career level","select",["student","fresher","experienced"]],
+    ["current_year","Current study year","text"],["expected_graduation","Expected graduation year","number"],["experience_years","Years of experience","number"]]},
+  skills: {title:"Skills", description:"List technologies you actually use. Add sources where you have them; unsupported claims remain unverified.", fields:[
+    ["skills_inventory","Skills by group","grouped","Languages: Python, Java"],["skill_evidence","Skill evidence sources","sourceMap","Python: Project name; repository URL"]]},
+  projects: {title:"Projects", description:"Projects help the agent connect your technical skills to real work. Include only details and evidence that you can support.", fields:[["projects","Projects","records"]]},
+  education: {title:"Education", description:"Add education details that apply to you. Coursework and sources are optional.", fields:[
+    ["education_details","Education records","records"],["education","Additional education details","lines"],["relevant_coursework","Relevant coursework","lines"]]},
+  experience: {title:"Experience & achievements", description:"Employment, internships, freelance work, open source, hackathons, and leadership can all count. Leave this section empty if you have no records yet.", fields:[
+    ["employers","Experience records","records"],["certifications","Certifications","records"],["achievements","Achievements","records"]]},
+  preferences: {title:"Career preferences", description:"Preferences guide discovery. You can leave any unknown or undecided option blank.", fields:[
+    ["target_roles","Target roles","lines"],["career_direction","Career direction","textarea"],["target_industries","Target industries","lines"],
+    ["preferred_locations","Preferred locations","lines"],["remote_preference","Work preference","select",["remote","hybrid","onsite","any"]],
+    ["internship_preference","Internship preference","nullableBool"],["preferred_company_types","Preferred company types","lines"],
+    ["minimum_compensation","Minimum compensation","text"],["availability","Availability","text"],["internship_duration","Preferred internship duration","text"],
+    ["preferred_start_date","Preferred start date","text"],["work_authorization","Work authorization","keyValues","Country or status: value"]]},
+  evidence: {title:"Evidence & GitHub", description:"Add public profile, repository, and source links that support your work. No link is required if you do not have one.", fields:[
+    ["github_profile_url","GitHub profile URL","url"],["github_repositories","GitHub repositories","records"],["links","Other profile links","lines"]]}
+};
+const PROFILE_RECORD_FIELDS = {
+  projects:[["name","Project name","text"],["description","Description","textarea"],["technologies","Technologies","lines"],["role","Your role","text"],["evidence","Evidence sources","lines"],["github_url","GitHub URL","url"],["live_url","Live demo URL","url"],["problem_solved","Problem solved","textarea"],["features","Features","lines"],["contribution","Your contribution","textarea"],["ai_ml_usage","AI/ML use","textarea"],["results","Results","lines"],["relevant_skills","Relevant skills","lines"]],
+  education_details:[["degree","Degree","text"],["college","Institution","text"],["field","Branch or field","text"],["graduation_year","Graduation year","number"],["cgpa","CGPA","text"],["evidence","Evidence","lines"]],
+  employers:[["company","Company or organization","text"],["title","Title or role","text"],["experience_type","Experience type","select",["employment","internship","freelance","open_source","hackathon","leadership","other"]],["location","Location","text"],["duration","Duration","text"],["project_description","Work summary","textarea"],["real_bullets","Responsibilities","lines"],["real_metrics","Evidence-backed metrics","lines"],["real_skills","Skills used","lines"],["evidence","Evidence sources","lines"]],
+  certifications:[["name","Certification","text"],["issuer","Issuer","text"],["year","Year","text"],["evidence","Evidence","lines"]],
+  achievements:[["title","Achievement","text"],["description","Description","textarea"],["date","Date","text"],["url","Source URL","url"],["evidence","Evidence sources","lines"]],
+  github_repositories:[["name","Repository name","text"],["url","Repository URL","url"],["description","Description","textarea"],["language","Primary language","text"]]
+};
+let PROFILE_EDITOR_SECTION = "overview";
 
 // Friendly display names. Internal values (API statuses, verdicts) never change —
 // only what the user reads. Colors: green=done, blue=in progress, gray=neutral,
@@ -900,9 +1014,8 @@ async function saveProfile() {
   const status = $("#profile-status");
   status.classList.remove("err");
   try {
-    const section = $("#profile-section").value;
-    const edits = JSON.parse($("#profile-json").value);
-    if (!edits || Array.isArray(edits) || typeof edits !== "object") throw new Error("Enter a JSON object for this profile section");
+    const section = PROFILE_EDITOR_SECTION;
+    const edits = collectProfileEdits(section);
     PROFILE = {...PROFILE, ...edits};
     const data = await put("/api/profile", PROFILE);
     PROFILE = data.profile;
@@ -917,61 +1030,233 @@ async function saveProfile() {
   } catch (e) { status.textContent = e.message; status.classList.add("err"); }
 }
 
+function prettyField(key) {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function linesValue(value) {
+  return Array.isArray(value) ? value.join("\n") : value ?? "";
+}
+
+function mapValue(key, value) {
+  if (!value || typeof value !== "object") return "";
+  return Object.entries(value).map(([name, values]) => `${name}: ${Array.isArray(values) ? values.join(key === "skills_inventory" ? ", " : "; ") : String(values ?? "")}`).join("\n");
+}
+
+function fieldControl(field) {
+  const [key,label,type,placeholder] = field;
+  const value = PROFILE[key];
+  const wide = ["lines","textarea","grouped","sourceMap","keyValues"].includes(type) ? " is-wide" : "";
+  if (type === "lines" || type === "textarea" || type === "grouped" || type === "sourceMap" || type === "keyValues") {
+    const contents = type === "lines" || type === "textarea" ? linesValue(value) : mapValue(key,value);
+    return `<div class="profile-form-field${wide}"><label for="pf-${key}">${esc(label)}</label><textarea id="pf-${key}" data-edit-field="${key}" data-edit-type="${type}" placeholder="${esc(placeholder || "Add one item per line")}">${esc(contents)}</textarea></div>`;
+  }
+  if (type === "records") {
+    const records = Array.isArray(value) ? value : [];
+    const cards = records.map((record,index) => recordCard(key,index,record,index)).join("");
+    const singular = key === "education_details" ? "education record" : key === "github_repositories" ? "repository" : key === "employers" ? "experience record" : key === "certifications" ? "certification" : key === "achievements" ? "achievement" : "project";
+    return `<div class="profile-record-field is-wide"><div class="profile-form-label">${esc(label)}</div><div class="profile-record-list" data-record-container="${key}">${cards}</div><button type="button" class="ghost profile-editor-add" data-add-profile-record="${key}">＋ Add ${singular}</button></div>`;
+  }
+  if (type === "select" || type === "nullableBool") {
+    const choices = type === "nullableBool" ? [["","Not set"],["true","Preferred"],["false","Not preferred"]] : [["","Not set"],...(placeholder || []).map((item) => [item,prettyField(item)])];
+    const selected = type === "nullableBool" ? value === null || value === undefined ? "" : String(value) : value ?? "";
+    return `<div class="profile-form-field"><label for="pf-${key}">${esc(label)}</label><select id="pf-${key}" data-edit-field="${key}" data-edit-type="${type}">${choices.map(([option,title]) => `<option value="${esc(option)}" ${String(selected) === option ? "selected" : ""}>${esc(title)}</option>`).join("")}</select></div>`;
+  }
+  const inputType = type === "number" ? "number" : type;
+  const inputValue = value ?? "";
+  return `<div class="profile-form-field"><label for="pf-${key}">${esc(label)}</label><input id="pf-${key}" type="${inputType}" data-edit-field="${key}" data-edit-type="${type}" value="${esc(inputValue)}" ${type === "number" ? "step=\"any\"" : ""}></div>`;
+}
+
+function recordFields(key, record = {}) {
+  const known = PROFILE_RECORD_FIELDS[key] || [];
+  const knownKeys = new Set(known.map(([field]) => field));
+  const extra = Object.keys(record).filter((field) => !knownKeys.has(field)).map((field) => [field,prettyField(field),Array.isArray(record[field]) ? "lines" : typeof record[field] === "number" ? "number" : "text"]);
+  return [...known,...extra];
+}
+
+function recordControl(field, key, index, value) {
+  const [fieldKey,label,type] = field;
+  const wide = ["lines","textarea"].includes(type) ? " is-wide" : "";
+  const contents = type === "lines" ? linesValue(value) : value ?? "";
+  if (type === "select") {
+    const options = PROFILE_RECORD_FIELDS[key].find(([k]) => k === fieldKey)?.[3] || [];
+    return `<div class="record-field"><label>${esc(label)}</label><select data-record-index="${index}" data-record-key="${fieldKey}" data-record-type="select"><option value="">Not set</option>${options.map((x) => `<option value="${esc(x)}" ${value === x ? "selected" : ""}>${esc(prettyField(x))}</option>`).join("")}</select></div>`;
+  }
+  if (type === "lines" || type === "textarea") return `<div class="record-field${wide}"><label>${esc(label)}</label><textarea data-record-index="${index}" data-record-key="${fieldKey}" data-record-type="${type}" placeholder="${type === "lines" ? "One item per line" : "Add details when available"}">${esc(contents)}</textarea></div>`;
+  return `<div class="record-field"><label>${esc(label)}</label><input type="${type === "number" ? "number" : type === "url" ? "url" : "text"}" data-record-index="${index}" data-record-key="${fieldKey}" data-record-type="${type}" value="${esc(contents)}"></div>`;
+}
+
+function recordCard(key, index, record = {}, originalIndex = -1) {
+  const titleKey = {projects:"name",education_details:"degree",employers:"title",certifications:"name",achievements:"title",github_repositories:"name"}[key];
+  const title = record[titleKey] || `New ${prettyField(key).replace(/s$/, "")}`;
+  const fields = recordFields(key,record).map((field) => recordControl(field,key,index,record[field[0]])).join("");
+  return `<article class="profile-record" data-record-card="${key}" data-original-index="${originalIndex}"><div class="profile-record-head"><b>${esc(title)}</b><button type="button" class="ghost" data-remove-profile-record>Remove</button></div><div class="profile-record-grid">${fields}</div></article>`;
+}
+
 function renderProfileSection() {
-  const section = $("#profile-section").value;
-  const view = Object.fromEntries(PROFILE_SECTIONS[section].map((key) => [key, PROFILE[key]]));
-  $("#profile-json").value = JSON.stringify(view, null, 2);
-  const help = {
-    overview: ["Who are you?", "Basic details and career stage help the agent understand your background. Leave anything unknown blank.", "Edit overview"],
-    skills: ["What can you build?", "Add technologies you actually know. Evidence-backed skills improve job matching; add a source when you have one.", "Add skills"],
-    projects: ["What have you built?", "Projects give the agent evidence of your technical ability. Add only real work, and include links or evidence when available.", "Add a project"],
-    education: ["What have you studied?", "Education and coursework help the agent assess role requirements. Add only details that apply to you.", "Add education"],
-    experience: ["What experience do you have?", "Employment, internships, open source, and achievements can support matches. This section is optional if you have none yet.", "Add experience"],
-    preferences: ["What opportunity are you looking for?", "Target roles, locations, work mode, and availability guide job discovery. You can leave preferences unset.", "Set preferences"],
-    evidence: ["Show your work", "GitHub and other source links connect your profile claims and projects to real evidence. Add links only when available.", "Add GitHub or evidence"]
-  };
-  const [title, description, action] = help[section];
-  $("#profile-section-help").innerHTML = `<b>${esc(title)}</b><p>${esc(description)}</p><button type="button" class="ghost" data-focus-profile-editor>${esc(action)}</button>`;
+  const nav = Object.entries(PROFILE_FORM_SECTIONS).map(([key,section]) => `<button type="button" data-editor-tab="${key}" aria-current="${PROFILE_EDITOR_SECTION === key ? "step" : "false"}">${esc(section.title)}</button>`).join("");
+  $("#profile-editor-nav").innerHTML = nav;
+  const section = PROFILE_FORM_SECTIONS[PROFILE_EDITOR_SECTION];
+  const fields = section.fields.map(fieldControl).join("");
+  $("#profile-editor-panel").innerHTML = `<h4>${esc(section.title)}</h4><p>${esc(section.description)}</p><div class="profile-form-grid">${fields}</div>`;
+  $("#profile-editor-toggle").textContent = $("#profile-editor").hidden ? "Open profile editor" : "Close profile editor";
+  $("#profile-editor-toggle").setAttribute("aria-expanded",String(!$("#profile-editor").hidden));
+}
+
+function addProfileRecord(key) {
+  const container = document.querySelector(`[data-record-container="${CSS.escape(key)}"]`);
+  if (!container) return;
+  const index = container.querySelectorAll("[data-record-card]").length;
+  container.insertAdjacentHTML("beforeend",recordCard(key,index,{},-1));
+  container.lastElementChild?.querySelector("input,textarea,select")?.focus();
+}
+
+function parseLines(value) {
+  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function parseMap(value, mode) {
+  const result = {};
+  for (const line of value.split(/\r?\n/)) {
+    const colon = line.indexOf(":");
+    if (colon < 1) continue;
+    const name = line.slice(0,colon).trim();
+    const raw = line.slice(colon + 1).trim();
+    if (!name || !raw) continue;
+    result[name] = mode === "grouped" ? raw.split(",").map((x) => x.trim()).filter(Boolean) : mode === "sourceMap" ? raw.split(";").map((x) => x.trim()).filter(Boolean) : raw;
+    if (mode === "keyValues") {
+      if (/^(true|false)$/i.test(raw)) result[name] = raw.toLowerCase() === "true";
+      else if (/^null$/i.test(raw)) result[name] = null;
+      else result[name] = raw;
+    }
+  }
+  return result;
+}
+
+function collectProfileEdits(sectionKey) {
+  const edits = {};
+  for (const [key,,type] of PROFILE_FORM_SECTIONS[sectionKey].fields) {
+    if (type === "records") {
+      const container = document.querySelector(`[data-record-container="${CSS.escape(key)}"]`);
+      const records = [...(container?.querySelectorAll("[data-record-card]") || [])].map((card) => {
+        const originalIndex = Number(card.dataset.originalIndex);
+        const original = originalIndex >= 0 ? PROFILE[key]?.[originalIndex] || {} : {};
+        const record = {...original};
+        for (const control of card.querySelectorAll("[data-record-key]")) {
+          const fieldKey = control.dataset.recordKey;
+          const kind = control.dataset.recordType;
+          let value = control.value.trim();
+          if (kind === "lines") value = parseLines(value);
+          else if (kind === "number") value = value ? Number(value) : null;
+          else if (kind === "select" && !value) { if (Object.hasOwn(original,fieldKey)) value = original[fieldKey]; else continue; }
+          record[fieldKey] = value;
+        }
+        const hasValue = Object.values(record).some((value) => Array.isArray(value) ? value.length : value !== "" && value !== null && value !== undefined);
+        if (!hasValue) return null;
+        const required = {projects:["name"],education_details:["degree"],employers:["company","title","duration"],certifications:["name"]}[key] || [];
+        const absent = required.find((field) => !String(record[field] || "").trim());
+        if (absent) throw new Error(`${prettyField(absent)} is required for each ${prettyField(key).replace(/s$/, "").toLowerCase()}.`);
+        return record;
+      }).filter(Boolean);
+      edits[key] = records;
+      continue;
+    }
+    const control = document.querySelector(`[data-edit-field="${CSS.escape(key)}"]`);
+    if (!control) continue;
+    let value = control.value.trim();
+    if (type === "lines") value = parseLines(value);
+    else if (["grouped","sourceMap","keyValues"].includes(type)) value = parseMap(value,type);
+    else if (type === "number") value = value ? Number(value) : null;
+    else if (type === "nullableBool") value = value === "" ? null : value === "true";
+    else if (type === "select") value = value || null;
+    edits[key] = value;
+  }
+  return edits;
+}
+
+function openProfileEditor(sectionKey = "overview") {
+  PROFILE_EDITOR_SECTION = PROFILE_FORM_SECTIONS[sectionKey] ? sectionKey : "overview";
+  $("#profile-editor").hidden = false;
+  renderProfileSection();
+  $("#profile-editor").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function closeProfileEditor() {
+  $("#profile-editor").hidden = true;
+  $("#profile-status").textContent = "";
+  renderProfileSection();
 }
 
 function renderProfileAnalysis(a) {
-  const pct = Number.isFinite(Number(a.completeness)) ? Number(a.completeness) : 0;
-  $("#profile-completeness-head").textContent = `${pct}% complete`;
-  $("#profile-completeness-head").className = `pill ${pct >= 80 ? "p-strong" : pct >= 40 ? "p-possible" : "p-needs_review"}`;
-  const unsupported = a.unknown_or_unsupported_skills || [];
-  const skillsEvidence = a.skill_evidence || [];
-  const groups = PROFILE.skills_inventory || {};
-  const skillHtml = Object.entries(groups).map(([group, skills]) => `<p><b>${esc(group)}</b><br>${skills.map((skill) => {
-    const evidence = skillsEvidence.find((x) => x.skill.toLowerCase() === skill.toLowerCase());
-    return `<span class="profile-chip">${esc(skill)} ${evidence ? `<span class="evidence-mark" title="${esc(evidence.source)}">✓ Evidence</span>` : "<span title=\"Claimed; evidence not recorded\">· Claimed</span>"}</span>`;
-  }).join("")}</p>`).join("") || '<p>No skills added yet.</p>';
-  const projects = PROFILE.projects || [];
-  const projectHtml = projects.length ? `<ul>${projects.map((p) => `<li><b>${esc(p.name)}</b>${p.description ? ` · ${esc(p.description)}` : ""}<br><span>${(p.technologies || []).map(esc).join(" · ")}</span>${p.github_url ? ` · <a href="${esc(p.github_url)}" target="_blank" rel="noreferrer">GitHub</a>` : ""}${p.live_url ? ` · <a href="${esc(p.live_url)}" target="_blank" rel="noreferrer">Live demo</a>` : ""}${p.evidence?.length ? `<br><span class="evidence-mark">Evidence: ${p.evidence.map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>` : '<p>No projects added yet.</p>';
-  const education = [...(PROFILE.education_details || []).map((e) => `${e.degree}${e.field ? ` · ${e.field}` : ""}${e.college ? ` · ${e.college}` : ""}${e.graduation_year ? ` · ${e.graduation_year}` : ""}`), ...(PROFILE.education || [])];
-  const employers = PROFILE.employers || [];
-  const prefs = [...(a.target_roles || []), ...(a.target_locations || [])];
+  const pct = Number.isFinite(Number(a.completeness)) ? Math.max(0,Math.min(100,Number(a.completeness))) : 0;
   const strength = a.profile_strength || "incomplete";
-  const ready = strength === "strong";
+  const categories = a.categories || {};
   const missing = Array.isArray(a.missing) ? a.missing : [];
-  const missingSection = (m) => /education/i.test(m) ? "education" : /skill|evidence/i.test(m) ? "skills" : /project/i.test(m) ? "projects" : /github/i.test(m) ? "evidence" : /experience/i.test(m) ? "experience" : /availability|internship|career preference|target role/i.test(m) ? "preferences" : "overview";
-  const missingHtml = missing.length ? `<ul class="profile-missing-list">${missing.map((m) => `<li><span aria-hidden="true">○</span><button type="button" class="text-button" data-profile-section="${missingSection(m)}">${esc(m)}</button></li>`).join("")}</ul>` : (pct >= 100 && ready ? "<p>Profile details are complete.</p>" : `<p>Profile analysis reports ${pct}% completeness and ${esc(strength)} strength. No missing items were returned.</p>`);
-  $("#profile-onboarding").innerHTML = ready
-    ? `<h3>Your profile is ready.</h3><p>Find opportunities using your profile and evidence.</p><button type="button" class="primary" data-find-my-opportunities>Find My Opportunities</button>`
-    : `<h3>${pct < 40 ? "Build your career profile" : "Complete your profile"}</h3><p>Your AI agent uses these details to find and prioritize suitable opportunities. Add only information that applies to you.</p><div class="onboarding-progress"><span>Profile completeness</span><b>${pct}%</b></div><div class="profile-progress"><span style="width:${pct}%"></span></div><button type="button" class="primary" data-start-profile>${pct < 40 ? "Start Profile" : "Complete Profile"}</button>`;
-  $("#profile-workspace").innerHTML = `<article class="card profile-section-card"><h3>Profile overview</h3><p><b>Target role</b> · ${esc((a.target_roles || []).join(", ") || "Not set")}</p><p><b>Career direction</b> · ${esc(a.career_direction || "Not set")}</p><p><b>Location</b> · ${esc(PROFILE.location || "Not set")}</p><p><b>Work preference</b> · ${esc(a.preferred_work_mode || "unknown")}</p><p><b>Availability</b> · ${esc(PROFILE.availability || PROFILE.internship_duration || "Not set")}</p>${PROFILE.github_profile_url ? `<p><b>GitHub</b> · <a href="${esc(PROFILE.github_profile_url)}" target="_blank" rel="noreferrer">Open profile</a></p>` : ""}<div class="profile-progress"><span style="width:${pct}%"></span></div><p style="margin-top:8px"><b>Profile strength · ${pct}%</b></p><p>${a.profile_strength === "strong" ? "You're ready for personalized job matching." : "Complete missing details to improve matching."}</p><button class="ghost" data-profile-section="preferences">Edit preferences</button></article>
-    <article class="card profile-section-card"><h3>Skills & evidence</h3>${skillHtml}${unsupported.length ? `<p>Evidence needed: ${unsupported.map(esc).join(", ")}</p>` : ""}<button class="ghost" data-profile-section="skills">Edit skills</button></article>
-    <article class="card profile-section-card"><h3>Projects</h3>${projectHtml}<button class="ghost" data-profile-section="projects">Edit projects</button></article>
-    <article class="card profile-section-card"><h3>Education</h3>${education.length ? `<ul>${education.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<p>Education details have not been added.</p>"}<button class="ghost" data-profile-section="education">Edit education</button></article>
-    <article class="card profile-section-card"><h3>Experience</h3>${employers.length ? `<ul>${employers.map((e) => `<li><b>${esc(e.title)}</b> · ${esc(e.company)} · ${esc(e.experience_type || "employment")} · ${esc(e.duration)}</li>`).join("")}</ul>` : "<p>Work, internship, freelance, open-source, or leadership records have not been added.</p>"}<button class="ghost" data-profile-section="experience">Edit experience</button></article>
-    <article class="card profile-section-card"><h3>Preferences</h3>${prefs.length ? prefs.map((x) => `<span class="profile-chip">${esc(x)}</span>`).join("") : "<p>Career preferences are not set.</p>"}<p>Remote · ${esc(a.preferred_work_mode || "unknown")}</p><p>Internship · ${PROFILE.internship_preference === null || PROFILE.internship_preference === undefined ? "unknown" : PROFILE.internship_preference ? "preferred" : "not preferred"}</p><p>Compensation · ${esc(PROFILE.minimum_compensation || "Not set")}</p><p>Availability · ${esc(PROFILE.availability || "Not set")}</p><button class="ghost" data-profile-section="preferences">Edit preferences</button></article>`;
-  const overviewTitle = [...document.querySelectorAll("#profile-workspace h3")].find((node) => node.textContent === "Profile overview");
-  const strengthLine = overviewTitle?.parentElement.querySelectorAll("p");
-  const strengthParagraph = strengthLine && [...strengthLine].find((node) => node.textContent.includes("Profile strength"));
-  if (strengthParagraph) strengthParagraph.innerHTML = `<b>Profile strength · ${esc(strength)}</b>`;
-  // Render the backend's actual missing fields; never infer completion from an empty list alone.
-  $("#profile-intelligence").innerHTML = `<p><b>Profile strength</b><br>${esc(strength)}</p><p><b>Completeness</b><br>${pct}%</p><p><b>Target roles</b><br>${esc((a.target_roles || []).join(", ") || "Not set")}</p><p><b>Evidence-backed skills</b><br>${esc((a.evidence_backed_skills || []).join(", ") || "None recorded yet")}</p><p><b>Evidence-backed projects</b><br>${esc((a.strongest_projects || []).join(", ") || "None recorded yet")}</p><p><b>${missing.length ? "Improve your profile" : ready ? "Profile complete" : "Profile review"}</b></p>${missingHtml}`;
-}
+  const targetRoles = Array.isArray(a.target_roles) ? a.target_roles : [];
+  const evidenceSkills = Array.isArray(a.evidence_backed_skills) ? a.evidence_backed_skills : [];
+  const projects = Array.isArray(PROFILE.projects) ? PROFILE.projects : [];
+  const educationRecords = Array.isArray(PROFILE.education_details) ? PROFILE.education_details : [];
+  const educationLegacy = Array.isArray(PROFILE.education) ? PROFILE.education : [];
+  const employers = Array.isArray(PROFILE.employers) ? PROFILE.employers : [];
+  const achievements = Array.isArray(PROFILE.achievements) ? PROFILE.achievements : [];
+  const empty = Object.values(categories).every((value) => !value);
+  const ready = strength === "strong";
+  const prettyStrength = strength.replace(/_/g," ");
+  const sectionForMissing = (value) => /education/i.test(value) ? "education" : /skill|evidence/i.test(value) ? "skills" : /project/i.test(value) ? "projects" : /github/i.test(value) ? "evidence" : /experience/i.test(value) ? "experience" : /availability|internship|career preference|target role/i.test(value) ? "preferences" : "overview";
+  const emptyState = (title,copy,section) => `<div class="profile-empty"><strong>${esc(title)}</strong><p>${esc(copy)}</p><button type="button" class="ghost" data-profile-section="${section}">${section === "skills" ? "Add Skills" : section === "projects" ? "Add Project" : section === "education" ? "Add Education" : section === "experience" ? "Add Experience" : "Edit section"}</button></div>`;
+  const metric = (label,value) => `<div class="profile-metric"><span class="metric-label">${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+  const snapshotItem = (label,value) => { const shown = value && String(value).toLowerCase() !== "unknown" ? value : "Not set"; return `<div class="snapshot-item"><span>${esc(label)}</span><strong>${esc(shown)}</strong></div>`; };
+  const stepCategories = [["About you","basic_information","overview"],["Skills","skills","skills"],["Projects","projects","projects"],["Education","education","education"],["Career preferences","career_preferences","preferences"]];
+  const firstMissing = missing[0] || "";
+  const firstSection = firstMissing ? sectionForMissing(firstMissing) : "overview";
 
+  $("#profile-completeness-head").textContent = prettyStrength.toUpperCase();
+  $("#profile-completeness-head").dataset.strength = strength;
+  $("#profile-onboarding").innerHTML = `<div class="profile-health-top"><div><span class="profile-health-label">Profile health</span><p class="profile-health-copy">Your profile is the foundation of your AI Career Agent.</p><div class="profile-completion">${pct}% complete<div class="profile-completion-track" role="progressbar" aria-label="Profile completeness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div></div></div><div><h3>${empty ? "Let’s build your career profile" : ready ? "Your profile is ready" : "Your next best step"}</h3><p class="profile-health-copy">${empty ? "Your AI Career Agent needs a few details to understand which opportunities fit you." : ready ? "Your profile has strong evidence for personalized opportunity matching." : firstMissing ? `Add ${esc(firstMissing.toLowerCase())} to strengthen your profile and improve matching.` : "Review your profile details to improve matching."}</p>${ready ? "" : `<button type="button" class="primary" data-profile-section="${firstSection}">${empty ? "Start Profile" : "Complete Profile"}</button>`}${empty ? `<div class="profile-onboarding-steps">${stepCategories.map(([label,key]) => `<span class="${categories[key] ? "is-done" : ""}">${categories[key] ? "✓" : "○"} ${esc(label)}</span>`).join("")}</div>` : ""}</div></div><div class="profile-health-metrics">${metric("Target roles",targetRoles.length ? targetRoles.join(", ") : "Not set")}${metric("Evidence-backed skills",String(evidenceSkills.length))}${metric("Projects",String(projects.length))}</div>`;
+
+  const snapshot = [
+    ["Career direction",a.career_direction], ["Target roles",targetRoles.join(", ")],
+    ["Preferred location",(a.target_locations || []).join(", ") || (PROFILE.preferred_locations || []).join(", ")],
+    ["Work preference",a.preferred_work_mode === "unknown" ? "Unknown" : a.preferred_work_mode],
+    ["Availability",PROFILE.availability || PROFILE.internship_duration], ["Career level",a.experience_level]
+  ];
+  $("#profile-snapshot").innerHTML = snapshot.map(([label,value]) => snapshotItem(label,value)).join("");
+
+  const skillsGroups = PROFILE.skills_inventory || {};
+  const skillEvidence = Array.isArray(a.skill_evidence) ? a.skill_evidence : [];
+  const groupedSkillNames = new Set(Object.values(skillsGroups).flat().map((skill) => String(skill).toLowerCase()));
+  let skillsContent = Object.entries(skillsGroups).filter(([,items]) => items?.length).map(([group,items]) => `<div class="profile-skill-group"><h4>${esc(group)}</h4><div>${items.map((skill) => {
+    const evidence = skillEvidence.find((item) => item.skill.toLowerCase() === skill.toLowerCase());
+    return `<span class="profile-chip">${esc(skill)} <span class="${evidence ? "evidence-mark" : "claim-mark"}">${evidence ? "✓ Evidence-backed" : "Claimed"}</span></span>`;
+  }).join("")}</div></div>`).join("");
+  const otherClaims = (a.claimed_skills || []).filter((skill) => !groupedSkillNames.has(String(skill).toLowerCase()));
+  if (otherClaims.length) skillsContent += `<div class="profile-skill-group"><h4>Other profile skills</h4><div>${otherClaims.map((skill) => {
+    const evidence = skillEvidence.find((item) => item.skill.toLowerCase() === skill.toLowerCase());
+    return `<span class="profile-chip">${esc(skill)} <span class="${evidence ? "evidence-mark" : "claim-mark"}">${evidence ? "✓ Evidence-backed" : "Claimed"}</span></span>`;
+  }).join("")}</div></div>`;
+  $("#profile-skills").innerHTML = skillsContent || emptyState("No skills added yet","Add the technologies you actually use so the agent can match you to relevant opportunities.","skills");
+
+  $("#profile-projects").innerHTML = projects.length ? projects.map((project) => `<article class="profile-data-card"><h4>${esc(project.name)}</h4>${project.description ? `<p>${esc(project.description)}</p>` : ""}${project.problem_solved ? `<p>${esc(project.problem_solved)}</p>` : ""}<div>${(project.technologies || []).map((technology) => `<span class="profile-chip">${esc(technology)}</span>`).join("")}</div><p><span class="${project.evidence?.length ? "evidence-mark" : "claim-mark"}">${project.evidence?.length ? "✓ Evidence-backed" : "Evidence not recorded"}</span></p><div class="profile-card-links">${project.github_url ? `<a href="${esc(project.github_url)}" target="_blank" rel="noreferrer">GitHub ↗</a>` : ""}${project.live_url ? `<a href="${esc(project.live_url)}" target="_blank" rel="noreferrer">Live demo ↗</a>` : ""}</div></article>`).join("") : emptyState("No projects yet","Projects are one of the strongest sources of evidence in your profile.","projects");
+
+  const experienceCards = employers.map((item) => `<article class="profile-data-card"><h4>${esc(item.title)}${item.company ? ` · ${esc(item.company)}` : ""}</h4><p>${[item.experience_type,item.location,item.duration].filter(Boolean).map(esc).join(" · ")}</p>${item.project_description ? `<p>${esc(item.project_description)}</p>` : ""}${(item.real_bullets || []).length ? `<ul>${item.real_bullets.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}</article>`);
+  const achievementCards = achievements.map((item) => `<article class="profile-data-card"><h4>${esc(item.title || item.name || "Achievement")}</h4>${Object.entries(item).filter(([key,value]) => !["title","name"].includes(key) && value !== "" && value !== null).map(([key,value]) => `<p><b>${esc(prettyField(key))}</b> · ${esc(Array.isArray(value) ? value.join(", ") : value)}</p>`).join("")}</article>`);
+  $("#profile-experience").innerHTML = [...experienceCards,...achievementCards].join("") || emptyState("No experience records yet","Add internships, freelance work, open-source contributions, hackathons, or leadership experience.","experience");
+
+  const educationRows = educationRecords.map((item) => `<article class="profile-data-card"><h4>${esc(item.degree)}</h4>${[["Institution",item.college],["Branch",item.field],["Graduation",item.graduation_year],["CGPA",item.cgpa]].filter(([,value]) => value !== "" && value !== null && value !== undefined).map(([label,value]) => `<p><b>${label}</b> · ${esc(value)}</p>`).join("")}</article>`);
+  const educationText = educationLegacy.map((value) => `<article class="profile-data-card"><h4>${esc(value)}</h4></article>`);
+  const educationContent = [...educationRows,...educationText].join("");
+  $("#profile-education").innerHTML = educationContent || emptyState("Education details not added","Add your education to strengthen eligibility matching.","education");
+
+  const targetDirection = targetRoles.join(", ") || (a.career_direction && a.career_direction !== "unknown" ? a.career_direction : "Not set");
+  const strongestSkills = a.strongest_skills || [];
+  const strongestProjects = a.strongest_projects || [];
+  const missingMarkup = missing.length ? `<div class="intel-missing"><span class="intel-label">Missing information</span><ul class="profile-missing-list">${missing.map((item) => `<li><button type="button" class="text-button" data-profile-section="${sectionForMissing(item)}">${esc(item)}</button></li>`).join("")}</ul></div>` : `<div class="intel-missing"><span class="intel-label">Missing information</span><p>${ready ? "No missing information reported." : "No missing items were returned by profile analysis."}</p></div>`;
+  $("#profile-intelligence").innerHTML = `<article class="intelligence-card"><span class="intel-label">Profile strength</span><strong>${esc(prettyStrength)}</strong></article><article class="intelligence-card"><span class="intel-label">Strongest areas</span><strong>${esc(strongestSkills.join(", ") || "No evidence-backed skills yet")}</strong></article><article class="intelligence-card"><span class="intel-label">Target direction</span><strong>${esc(targetDirection)}</strong></article><article class="intelligence-card"><span class="intel-label">Strongest projects</span><strong>${esc(strongestProjects.join(", ") || "No evidence-backed projects yet")}</strong></article>${missingMarkup}`;
+  const nextTitle = ready ? "Your profile is ready" : "Recommended next step";
+  const nextCopy = ready ? "Find opportunities using your profile and evidence." : firstMissing ? `Add ${firstMissing.toLowerCase()} to improve personalized matching.` : "Review your profile sections to improve matching.";
+  $("#profile-next-step").classList.toggle("is-recommendation",!ready);
+  $("#profile-next-step").innerHTML = `<div><strong>${nextTitle}</strong><p>${esc(nextCopy)}</p></div><button type="button" class="${ready ? "primary" : "ghost"}" ${ready ? "data-find-my-opportunities" : `data-profile-section="${firstSection}"`}>${ready ? "Find My Opportunities" : "Fix This"}</button>`;
+}
 function renderInsights() {
   const evidence = PROFILE_ANALYSIS.evidence_backed_skills || [];
   const missingCounts = {};
@@ -1370,16 +1655,14 @@ document.addEventListener("click", (ev) => {
     if (panel) { panel.classList.toggle("hidden"); t.setAttribute("aria-expanded", String(!panel.classList.contains("hidden"))); }
   }
   if (t.dataset.profileSection) {
-    showPage("profile"); $("#profile-section").value = t.dataset.profileSection; renderProfileSection();
-    $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"});
+    showPage("profile"); openProfileEditor(t.dataset.profileSection);
   }
   if (t.dataset.startProfile !== undefined) {
-    showPage("profile"); $("#profile-section").value = "overview"; renderProfileSection();
-    $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"}); $("#profile-json").focus();
+    showPage("profile"); openProfileEditor("overview");
   }
-  if (t.dataset.focusProfileEditor !== undefined) {
-    $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"}); $("#profile-json").focus();
-  }
+  if (t.dataset.editorTab) { PROFILE_EDITOR_SECTION = t.dataset.editorTab; renderProfileSection(); }
+  if (t.dataset.addProfileRecord) addProfileRecord(t.dataset.addProfileRecord);
+  if (t.hasAttribute("data-remove-profile-record")) t.closest("[data-record-card]")?.remove();
   if (t.dataset.findMyOpportunities !== undefined) runSearch().then(() => showPage("opportunities"));
   if (t.dataset.gotoProfile) showPage("profile");
   if (t.dataset.gotoOpportunities || t.dataset.gotoOpportunity) {
@@ -1457,7 +1740,11 @@ $("#jf-score").addEventListener("input", renderJobs);
 $("#jf-hide-applied").addEventListener("change", renderJobs);
 $("#btn-search").addEventListener("click", runSearch);
 $("#profile-save").addEventListener("click", saveProfile);
-$("#profile-section").addEventListener("change", renderProfileSection);
+$("#profile-editor-toggle").addEventListener("click", () => {
+  if ($("#profile-editor").hidden) openProfileEditor(PROFILE_EDITOR_SECTION);
+  else closeProfileEditor();
+});
+$("#profile-cancel").addEventListener("click", closeProfileEditor);
 $("#apps-toggle").addEventListener("click", () => {
   const body = $("#apps-body");
   const hidden = body.classList.toggle("hidden");
