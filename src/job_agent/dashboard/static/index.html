@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Job Agent</title>
+<title>AI Career Agent</title>
 <style>
-  /* ── light neutral, one quiet indigo accent ────────────────────────────── */
   :root {
     --bg: #FAFAFA;
     --card: #FFFFFF;
@@ -275,28 +274,99 @@
   @media (max-width:460px) { .sub { display:none !important; } .job-card { grid-template-columns:1fr; }
     .scorebox { grid-row:1; flex-direction:row; justify-content:flex-start; align-items:center; } .score-ring { width:48px; height:48px; }
     .score-ring:before { inset:4px; } .score-value { font-size:13px; } .score-strength { margin-left:3px; } .toolbar { align-items:flex-start; } }
+  /* Product shell overrides: desktop sidebar, compact mobile navigation. */
+  body { max-width:none; margin:0; padding:0 30px 48px 272px; background:var(--bg); }
+  .sidebar { position:fixed; inset:0 auto 0 0; z-index:30; width:238px; padding:24px 16px; display:flex; flex-direction:column; background:#fff; border-right:1px solid var(--border); }
+  .sidebar-brand { display:flex; align-items:center; gap:11px; padding:4px 8px 26px; }
+  .sidebar-brand b { display:block; font-size:14px; letter-spacing:-.02em; }
+  .sidebar-brand small { display:block; color:var(--muted); font-size:10px; }
+  .side-nav { display:grid; gap:5px; }
+  .side-nav a,.mobile-nav a { display:flex; align-items:center; gap:11px; padding:10px 12px; color:var(--muted); border-radius:9px; font-size:13px; font-weight:650; }
+  .side-nav a:hover,.side-nav a.active,.mobile-nav a.active { color:var(--accent); background:var(--accent-soft); }
+  .nav-icon { width:18px; text-align:center; font-size:14px; }
+  .sidebar-foot { margin-top:auto; padding:12px; color:var(--muted); font-size:11px; border-top:1px solid var(--border-soft); }
+  .mobile-header,.mobile-nav { display:none; }
+  #app-main { max-width:1120px; margin:0 auto; }
+  #app-main > section { margin-top:26px; }
+  #app-main > section[hidden] { display:none !important; }
+  .hero { border-radius:16px; box-shadow:none; }
+  .section-heading { margin:0 0 15px; }
+  .section-heading h2 { font-size:22px; }
+  .top-recommendation { display:grid; grid-template-columns:minmax(0,1fr) 170px; gap:20px; padding:22px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; box-shadow:var(--shadow); }
+  .recommendation-score { display:flex; flex-direction:column; align-items:center; justify-content:center; border-left:1px solid var(--border-soft); }
+  .recommendation-score strong { color:var(--accent); font-size:34px; letter-spacing:-.04em; }
+  .recommendation-score span { color:var(--muted); font-size:11px; }
+  .profile-progress { margin-top:17px; height:7px; overflow:hidden; border-radius:99px; background:#edf0f5; }
+  .profile-progress span { display:block; height:100%; border-radius:99px; background:var(--accent); }
+  .profile-workspace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+  .profile-section-card,.insight-card { padding:18px; }
+  .profile-section-card h3,.insight-card h3 { margin:0 0 10px; font-size:14px; }
+  .profile-section-card p,.profile-section-card li,.insight-card p,.detail-block p,.detail-block li { color:var(--muted); font-size:12px; }
+  .profile-section-card ul,.detail-block ul { margin:0; padding-left:18px; display:grid; gap:6px; }
+  .profile-chip { display:inline-flex; gap:5px; align-items:center; margin:3px 4px 3px 0; padding:5px 9px; border:1px solid var(--border); border-radius:99px; color:#43516a; font-size:11px; background:#fafbfe; }
+  .evidence-mark { color:var(--green); font-weight:700; }
+  .insights-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  .bar-row { display:grid; grid-template-columns:95px minmax(30px,1fr) 24px; align-items:center; gap:8px; margin:9px 0; color:var(--muted); font-size:11px; }
+  .bar-track { height:7px; border-radius:99px; background:#edf0f5; overflow:hidden; }
+  .bar-track i { display:block; height:100%; border-radius:99px; background:var(--accent); }
+  .application-tabs { display:flex; gap:6px; overflow:auto; padding:0 0 10px; }
+  .application-tabs button[aria-pressed="true"] { color:var(--accent); border-color:#c9cbf2; background:var(--accent-soft); }
+  .application-detail { margin-top:12px; padding:20px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; }
+  .application-detail h3 { margin:0 0 4px; font-size:19px; }
+  .detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; margin-top:18px; }
+  .detail-block { padding-top:14px; border-top:1px solid var(--border-soft); }
+  .detail-block h4 { margin-bottom:7px; font-size:12px; }
+  :focus-visible { outline:3px solid #a5a6f1; outline-offset:2px; }
+  @media (max-width:850px) {
+    body { padding:0 18px 88px; } .sidebar { display:none; }
+    .mobile-header { position:sticky; top:0; z-index:25; display:flex; align-items:center; gap:10px; margin:0 -18px 18px; padding:12px 18px; background:rgba(255,255,255,.96); border-bottom:1px solid var(--border); }
+    .mobile-header .brand-mark { width:32px; height:32px; border-radius:10px; }
+    .mobile-title { font-size:13px; font-weight:750; } .mobile-status { margin-left:auto; color:var(--muted); font-size:10px; }
+    .mobile-nav { position:fixed; inset:auto 0 0; z-index:40; display:flex; justify-content:space-around; gap:2px; padding:7px 5px max(7px,env(safe-area-inset-bottom)); background:rgba(255,255,255,.98); border-top:1px solid var(--border); }
+    .mobile-nav a { flex:1; justify-content:center; padding:8px 4px; font-size:10px; } .mobile-nav .nav-icon { display:none; }
+  }
+  @media (max-width:600px) {
+    body { padding-left:14px; padding-right:14px; }
+    .mobile-header { margin-left:-14px; margin-right:-14px; padding-left:14px; padding-right:14px; }
+    .top-recommendation { grid-template-columns:1fr; padding:17px; }
+    .recommendation-score { align-items:flex-start; border:0; border-top:1px solid var(--border-soft); padding-top:12px; flex-direction:row; gap:8px; }
+    .recommendation-score strong { font-size:25px; }
+    .profile-workspace,.insights-grid,.detail-grid { grid-template-columns:1fr; }
+    .today-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .today-card { padding:12px; } .today-value { font-size:20px; }
+    .job-card { grid-template-columns:1fr; } .scorebox { grid-row:1; flex-direction:row; }
+  }
 </style>
 </head>
 <body>
-
-<header>
-  <span class="brand-mark" aria-hidden="true">J</span>
-  <h1>Job Agent<span class="brand-caption">AI-powered job search copilot</span></h1>
-  <nav class="topnav" aria-label="Main navigation">
-    <a class="active" href="#sec-today">Today</a><a href="#sec-jobs">Opportunities</a>
-    <a href="#sec-apps">Tracker</a>
-    <a href="#sec-profile">My Profile</a>
-    <button type="button" disabled aria-disabled="true" title="Settings are not available yet">Settings</button>
+<aside class="sidebar" aria-label="Career agent sidebar">
+  <div class="sidebar-brand"><span class="brand-mark" aria-hidden="true">A</span><span><b>AI Career Agent</b><small>Personal career intelligence</small></span></div>
+  <nav class="side-nav" aria-label="Main navigation">
+    <a href="#today" data-page-link="today"><span class="nav-icon" aria-hidden="true">◷</span>Today</a>
+    <a href="#profile" data-page-link="profile"><span class="nav-icon" aria-hidden="true">◎</span>My Profile</a>
+    <a href="#opportunities" data-page-link="opportunities"><span class="nav-icon" aria-hidden="true">⌕</span>Opportunities</a>
+    <a href="#applications" data-page-link="applications"><span class="nav-icon" aria-hidden="true">▤</span>Applications</a>
+    <a href="#insights" data-page-link="insights"><span class="nav-icon" aria-hidden="true">↗</span>Insights</a>
   </nav>
-  <span class="sub">private — runs only on this computer</span>
-</header>
+  <div class="sidebar-foot">Private workspace · Stored on this computer</div>
+</aside>
+<header class="mobile-header"><span class="brand-mark" aria-hidden="true">A</span><span class="mobile-title">AI Career Agent</span><span class="mobile-status">Local workspace</span></header>
+<nav class="mobile-nav" aria-label="Mobile navigation">
+  <a href="#today" data-page-link="today"><span class="nav-icon" aria-hidden="true">◷</span>Today</a>
+  <a href="#profile" data-page-link="profile"><span class="nav-icon" aria-hidden="true">◎</span>Profile</a>
+  <a href="#opportunities" data-page-link="opportunities"><span class="nav-icon" aria-hidden="true">⌕</span>Jobs</a>
+  <a href="#applications" data-page-link="applications"><span class="nav-icon" aria-hidden="true">▤</span>Apps</a>
+  <a href="#insights" data-page-link="insights"><span class="nav-icon" aria-hidden="true">↗</span>Insights</a>
+</nav>
+<main id="app-main">
 
 <!-- ── Jobs (things to do — leads the page) ─────────────────────────────── -->
-<section id="sec-today">
+<section id="sec-today" data-page="today">
   <div class="hero">
-    <div class="hero-copy"><div class="eyebrow">A smarter way to find your next role</div>
-      <h2>Your application day, at a glance.</h2>
-      <p>Review discovered opportunities, prepare applications, and keep follow-ups moving from one place.</p>
+    <div class="hero-copy"><div class="eyebrow">Your personal career agent</div>
+      <h2 id="today-greeting">Good morning.</h2>
+      <p id="today-intro">Run a search to find and prioritize opportunities using your profile.</p>
+      <div id="today-profile-progress"></div>
     </div>
     <div class="hero-controls"><button class="primary" id="btn-search">Find new jobs</button>
       <label class="days-control">Posted within <input id="days" type="number" min="1" max="90" value="30"> days</label>
@@ -305,16 +375,24 @@
   <div class="today-grid" id="today-summary" aria-live="polite"></div>
 </section>
 
-<section id="sec-jobs">
-  <div class="section-heading"><div><h2>Recommended opportunities</h2>
+<section id="sec-recommendation" data-page="today">
+  <div class="section-heading"><div><h2>Recommended for you</h2><div class="sec-sub">Prioritized by verification, eligibility, and match score from your latest search.</div></div></div>
+  <div id="recommendation-card"></div>
+</section>
+
+<section id="sec-jobs" data-page="opportunities">
+  <div class="section-heading"><div><h2>Opportunities</h2>
     <div class="sec-sub" id="gen-at">Verification status first, then fit score. Lower-scoring and review-needed roles remain visible.</div></div></div>
   <div class="toolbar">
+    <label>Match <select id="jf-fit"><option value="">all</option><option value="strong">Strong match</option><option value="good">Good match</option><option value="review">Review</option></select></label>
+    <label>Genuine <select id="jf-verification"><option value="">all</option><option value="verified">Verified</option><option value="needs_review">Needs review</option><option value="suspicious">Suspicious</option></select></label>
+    <label>Focus <select id="jf-focus"><option value="">all roles</option><option value="internship">Internship</option><option value="remote">Remote</option><option value="bengaluru">Bengaluru</option><option value="ai">AI / ML</option><option value="sde">SDE</option></select></label>
     <span style="flex:1"></span>
     <label>Status <select id="jf-status"><option value="">all</option></select></label>
     <label>Source <select id="jf-source"><option value="">all</option></select></label>
     <label>Min score <input id="jf-score" type="number" min="0" max="100" placeholder="0"></label>
     <label>Sort <select id="jf-sort">
-      <option value="score">verified, then match</option><option value="newest">newest first</option><option value="company">company</option>
+      <option value="recommended">recommended</option><option value="match">match score</option><option value="newest">newest first</option><option value="verification">verification</option>
     </select></label>
     <label><input type="checkbox" id="jf-hide-applied" checked> Hide jobs I've applied to</label>
   </div>
@@ -331,15 +409,13 @@
 </section>
 
 <!-- ── Applications (history — collapsible) ─────────────────────────────── -->
-<section id="sec-apps">
+<section id="sec-apps" data-page="applications">
   <div class="h2-row">
-    <h2>Application tracker</h2>
+    <div><h2>Applications</h2><div class="sec-sub">Your application pipeline and next steps.</div></div>
     <button class="ghost" id="apps-toggle" aria-expanded="true">Hide</button>
   </div>
-  <div class="sec-sub">Track applications, see match and next steps, update status,
-    add notes, and set follow-up reminders.</div>
   <div id="apps-body">
-    <div class="tiles" id="tiles"></div>
+    <div class="application-tabs" id="application-tabs" aria-label="Filter applications by status"></div>
     <div class="toolbar">
       <label>Status <select id="af-status"><option value="">all</option></select></label>
       <label>Source <select id="af-source"><option value="">all</option></select></label>
@@ -353,15 +429,12 @@
 </section>
 
 <!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
-<section id="sec-profile">
-  <h2>Developer Profile</h2>
-  <div class="sec-sub">Your profile powers opportunity search, evidence-backed matching, resume tailoring, and application answers. Missing information stays unknown until you add it.</div>
-  <div class="card" style="padding:16px;margin:12px 0">
-    <div class="toolbar"><b id="profile-strength">Profile analysis</b><span id="profile-completeness"></span></div>
-    <div id="profile-overview" class="stats" aria-live="polite"></div>
-    <div id="profile-missing" class="sec-sub"></div>
-    <div id="profile-evidence" class="sec-sub"></div>
-  </div>
+<section id="sec-profile" data-page="profile">
+  <div class="section-heading"><div><h2>My Profile</h2><div class="sec-sub">Your AI career profile · the foundation of personalized opportunities.</div></div><b id="profile-completeness-head" class="pill p-needs_review">Profile incomplete</b></div>
+  <div class="profile-workspace" id="profile-workspace"></div>
+  <div class="section-heading" style="margin-top:25px"><div><h2>Profile intelligence</h2><div class="sec-sub">A transparent summary based on the evidence you have added.</div></div></div>
+  <div class="card profile-section-card" id="profile-intelligence"></div>
+  <div class="section-heading" style="margin-top:25px"><div><h2>Edit your profile</h2><div class="sec-sub">Missing information remains unknown until you add it.</div></div></div>
   <div class="card" style="padding:16px">
     <div class="toolbar"><label>Profile section <select id="profile-section">
       <option value="overview">Overview</option><option value="skills">Skills</option>
@@ -375,13 +448,19 @@
   </div>
 </section>
 
-<section id="sec-pipeline">
+<section id="sec-pipeline" data-page="profile">
   <h2>How applying works</h2>
   <div class="sec-sub">Clicking <b>Apply</b> opens the real application form in a browser
     window on your screen and fills in the safe answers for you. Anything personal, legal,
     or consent-related is left for you to do yourself. Nothing is ever sent until you
     review everything and click “Submit application”.</div>
 </section>
+
+<section id="sec-insights" data-page="insights">
+  <div class="section-heading"><div><h2>Career insights</h2><div class="sec-sub">Patterns from your actual profile and latest opportunities.</div></div></div>
+  <div class="insights-grid" id="insights-content"></div>
+</section>
+</main>
 
 <script>
 "use strict";
@@ -392,6 +471,7 @@ const USER_STATUSES = ["saved", "ready_to_apply", "applied", "under_review",
   "assessment", "interviewing", "offer", "rejected", "withdrawn"];
 const ALL_STATUSES = ["submitted", "paused", "failed", ...USER_STATUSES];
 let PROFILE = {};
+let PROFILE_ANALYSIS = {};
 const PROFILE_SECTIONS = {
   overview: ["name", "email", "phone", "location", "role", "career_status", "current_year", "expected_graduation", "experience_years"],
   skills: ["skills_inventory", "skill_evidence"],
@@ -411,7 +491,9 @@ const LABELS = {
   under_review: "Under review", assessment: "Assessment", interviewing: "Interview",
   offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn",
   strong: "Strong match", possible: "Possible match", skip: "Not a fit",
-  unscored: "Not scored",
+  unscored: "Not scored", verified: "Verified", needs_review: "Needs review",
+  suspicious: "Suspicious", eligible: "Eligible", review: "Needs review",
+  not_eligible: "Not eligible",
 };
 const label = (v) => LABELS[v] || v;
 const _VERIFICATION_RANK = {verified: 2, needs_review: 1, suspicious: 0};
@@ -464,57 +546,67 @@ function toast(msg) {
 }
 
 /* ── Applications ─────────────────────────────────────────────────────── */
-function renderTiles() {
-  const c = {total: APPS.length};
-  for (const s of ["submitted", "paused", "failed"])
-    c[s] = APPS.filter((r) => r.status === s).length;
-  const overdue = APPS.filter((r) => r.needs_follow_up).length;
-  const TILE_NAMES = {total: "applications tracked", submitted: "submitted",
-                      paused: "waiting on you", failed: "need attention"};
-  const TILE_ICONS = {total: "↗", submitted: "✓", paused: "…", failed: "!"};
-  const current = $("#af-status").value;
-  $("#tiles").innerHTML = ["total", "submitted", "paused", "failed"].map((k) => {
-    const active = k === "total" ? current === "" : current === k;
-    return `
-    <div class="card tile ${active ? "active" : ""}" data-tile="${k}"
-         title="Click to ${k === "total" ? "show everything" : "filter to these"}">
-      <span class="metric-icon" aria-hidden="true">${TILE_ICONS[k]}</span>
-      <div><div class="v">${c[k]}</div><div class="k">${TILE_NAMES[k]}</div></div>
-      ${k === "total" && overdue ? `<div class="flag"><span class="pill p-followup">${overdue} need follow-up</span></div>` : ""}
-    </div>`;
+const APP_TABS = [["", "All"], ["ready_to_apply", "Ready"], ["applied", "Applied"],
+  ["under_review", "Under review"], ["assessment", "Assessment"], ["interviewing", "Interview"],
+  ["offer", "Offer"], ["rejected", "Rejected"]];
+
+function renderApplicationTabs() {
+  const active = $("#af-status").value;
+  $("#application-tabs").innerHTML = APP_TABS.map(([status, title]) => {
+    const count = status ? APPS.filter((r) => r.status === status).length : APPS.length;
+    return `<button type="button" data-app-tab="${esc(status)}" aria-pressed="${active === status}">${esc(title)} <span class="loc">${count}</span></button>`;
   }).join("");
 }
 
 function renderToday() {
-  const openCount = JOBS.filter((j) => !j.already_applied).length;
-  const newCount = JOBS.filter((j) => j.first_seen_this_scan === true).length;
-  const newValue = JOB_META && JOB_META.new_count === null ? "—"
-    : JOB_META ? String(newCount) : "—";
   const ready = APPS.filter((r) => r.status === "ready_to_apply").length;
   const followups = APPS.filter((r) => r.needs_follow_up).length;
-  const submitted = APPS.filter((r) => ["applied", "submitted"].includes(r.status)).length;
-  const assessments = APPS.filter((r) => r.status === "assessment").length;
   const interviews = APPS.filter((r) => r.status === "interviewing").length;
-  const offers = APPS.filter((r) => r.status === "offer").length;
+  const genuineNew = JOBS.filter((j) => j.first_seen_this_scan && j.verification?.status === "verified").length;
+  const newValue = JOB_META && JOB_META.new_count !== null ? genuineNew : "—";
+  const strong = JOBS.filter((j) => !j.already_applied && j.verification?.status === "verified" && j.eligibility?.status === "eligible" && Number(j.score) >= 80).length;
+  const awaiting = APPS.filter((r) => ["paused", "failed", "ready_to_apply"].includes(r.status)).length;
   const cards = [
-    [openCount, "Opportunities to review", "All current results, across match scores", "#sec-jobs"],
-    [newValue, "New this scan", JOB_META === null ? "Run a search to see new roles"
-      : JOB_META.new_count === null ? "Baseline scan" : "First seen in this scan", "#sec-jobs"],
-    [ready, "Ready to apply", "Marked ready in your tracker", "#sec-apps"],
-    [submitted, "Applications submitted", "Confirmed or manually recorded", "#sec-apps"],
+    [newValue, "New genuine opportunities", JOB_META === null ? "Run a search to discover roles" : "Verified and first seen this scan", "#sec-jobs"],
+    [strong, "Strong verified matches", "Eligible roles scoring 80% or higher", "#sec-jobs"],
+    [ready, "Ready to apply", "Prepared and awaiting your action", "#sec-apps"],
+    [awaiting, "Applications awaiting action", "Paused, failed, or ready for review", "#sec-apps"],
     [followups, "Follow-ups due", "Needs a follow-up today", "#sec-apps"],
-    [assessments, "Assessments", "Assessment stages to prepare", "#sec-apps"],
     [interviews, "Interviews", "Interview stages to prepare", "#sec-apps"],
-    [offers, "Offers", "Offers to review", "#sec-apps"],
   ];
   $("#today-summary").innerHTML = cards.map((c) =>
     '<a class="today-card" href="' + c[3] + '"><div class="today-value">' + esc(c[0]) +
     '</div><div class="today-label">' + esc(c[1]) + '</div><div class="today-hint">' +
     esc(c[2]) + '</div></a>').join("");
+  const hour = new Date().getHours();
+  $("#today-greeting").textContent = `Good ${hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"}${PROFILE.name ? `, ${PROFILE.name.split(/\s+/)[0]}` : ""}.`;
+  const worthAttention = JOBS.filter((j) => !j.already_applied && j.verification?.status === "verified" && j.eligibility?.status !== "not_eligible").length;
+  $("#today-intro").textContent = JOB_META ? `Your agent found ${worthAttention} verified ${worthAttention === 1 ? "opportunity" : "opportunities"} worth your attention.` : "Run a search to find and prioritize opportunities using your profile.";
+  const pct = PROFILE_ANALYSIS.completeness ?? 0;
+  $("#today-profile-progress").innerHTML = `<div class="profile-progress" role="progressbar" aria-label="Profile completeness" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div><div class="today-hint">Profile ${pct}% complete</div>`;
+  renderRecommendation();
+  renderInsights();
+}
+
+function renderRecommendation() {
+  const candidates = JOBS.filter((j) => !j.already_applied && j.eligibility?.status !== "not_eligible").slice().sort((a,b) =>
+    ((_VERIFICATION_RANK[b.verification?.status] ?? 0) - (_VERIFICATION_RANK[a.verification?.status] ?? 0)) ||
+    ((_ELIGIBILITY_RANK[b.eligibility?.status] ?? 0) - (_ELIGIBILITY_RANK[a.eligibility?.status] ?? 0)) ||
+    ((b.score ?? -1) - (a.score ?? -1)));
+  const j = candidates[0];
+  if (!j) {
+    $("#recommendation-card").innerHTML = '<div class="empty"><h3>Your agent is still looking.</h3><p>Run a search to find genuine opportunities matched to your profile.</p><button class="primary" data-find-jobs="1">Find opportunities</button></div>';
+    return;
+  }
+  const matches = (j.supported_matches || []).slice(0,4);
+  const gaps = (j.supported_gaps || []).slice(0,3);
+  const score = j.score !== null && j.score !== undefined && Number.isFinite(Number(j.score)) ? `${esc(j.score)}%` : "Not scored";
+  const action = j.preparation_status === "READY_TO_APPLY" ? "Review application" : j.resume_status === "READY" ? "Prepare application" : "Review opportunity";
+  $("#recommendation-card").innerHTML = `<article class="top-recommendation"><div><div class="job-company">${esc(j.company)}</div><h3 class="job-title" style="margin-top:3px">${esc(j.title)}</h3><div class="job-meta">${esc(j.location || "Location not listed")} · ${esc(j.remote === true ? "Remote" : /intern/i.test(j.title) ? "Internship" : "Role type not specified")}</div><div class="job-signals"><span class="pill p-${esc(j.verification?.status || "needs_review")}">${esc(label(j.verification?.status || "needs_review"))}</span><span class="pill p-${esc(j.eligibility?.status || "review")}">${esc(label(j.eligibility?.status || "review"))}</span></div><div class="match-copy"><b>Why this matches</b><div class="skill-list">${matches.length ? matches.map((x)=>`<span class="skill-chip">✓ ${esc(x)}</span>`).join("") : "<span class=loc>No evidence-backed skill overlap recorded.</span>"}</div>${gaps.length ? `<p style="margin-top:8px"><b>Main gap:</b> ${gaps.map(esc).join(", ")}</p>` : ""}</div><div class="app-next"><b>Next action</b> · ${esc(action)}</div><div class="job-actions"><button class="primary" data-goto-opportunity="${esc(j.id)}">Review opportunity</button></div></div><div class="recommendation-score"><strong>${score}</strong><span>Match score</span></div></article>`;
 }
 
 function renderApps() {
-  renderTiles();
+  renderApplicationTabs();
   const st = $("#af-status").value, src = $("#af-source").value, sort = $("#af-sort").value;
   let rows = APPS.filter((r) => (!st || r.status === st) && (!src || r.source === src));
   const statusOrder = ["ready_to_apply", "applied", "submitted", "under_review", "assessment", "interviewing", "offer", "rejected", "withdrawn", "saved", "paused", "failed"];
@@ -525,10 +617,8 @@ function renderApps() {
       : b.date.localeCompare(a.date));
   if (!rows.length) {
     $("#apps-table").innerHTML = APPS.length
-      ? '<div class="empty"><h3>No applications match these filters.</h3><p>Clear a filter or choose all to see your tracked opportunities.</p></div>'
-      : '<div class="starter"><h3>Your next opportunity starts here.</h3>' +
-        '<p>Search fresh roles and Job Agent will rank opportunities against your profile. Track applications and review every answer before submitting.</p>' +
-        '<button class="primary" data-find-jobs="1">Find new jobs</button></div>';
+      ? '<div class="empty"><h3>No applications in this stage.</h3><p>Choose another status to view your application history.</p></div>'
+      : '<div class="starter"><h3>You haven’t applied yet.</h3><p>Your next best opportunity will appear here after you save or apply to a role.</p><button class="primary" data-goto-opportunities="1">Explore opportunities</button></div>';
     return;
   }
   const body = rows.map((r) => {
@@ -550,12 +640,20 @@ function renderApps() {
       '<details><summary>Timeline</summary><div class="app-details">' + (r.timeline || []).map((e) =>
         '<span>' + esc((e.at || "").slice(0, 10)) + ' · ' + esc(e.event || e.status || "Updated") + '</span>').join("") + '</div></details>' +
       '<div class="app-next"><b>Next action</b> · ' + esc(r.next_action || "Review application status") + '</div>' +
+      '<button class="ghost" data-app-detail="' + esc(key) + '" aria-expanded="false">Application details</button>' +
+      '<div class="application-detail hidden" data-detail="' + esc(key) + '">' + applicationDetailHtml(r) + '</div>' +
       '<div style="margin-top:10px">' + followFlag(r) + '</div></div>' +
       '<div class="app-side">' + statusSelect(r.job_id, r.status, meta, r.attempt_id) +
       '<button class="ghost" data-edit="' + esc(key) + '">Edit</button></div></article>' +
       '<div class="editor hidden" data-editor="' + esc(key) + '">' + editorHtml(key, r, meta, ids) + '</div>';
   }).join("");
   $("#apps-table").innerHTML = '<div class="apps-list">' + body + '</div>';
+}
+
+function applicationDetailHtml(r) {
+  const timeline = (r.timeline || []).map((e) => `<li>${esc((e.at || "").slice(0,10))} · ${esc(e.event || e.status || "Update")}</li>`).join("");
+  const answers = Object.entries(r.submitted_answers || {}).map(([k,v]) => `<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join("");
+  return `<h3>${esc(r.title)} · ${esc(r.company)}</h3><div class="job-signals"><span class="pill p-${esc(r.verification_status || "needs_review")}">${esc(label(r.verification_status || "unknown"))}</span><span class="pill p-${esc(r.eligibility_status || "review")}">${esc(label(r.eligibility_status || "unknown"))}</span>${r.match_score != null ? `<span class="pill p-strong">${esc(r.match_score)}% match</span>` : ""}</div><div class="detail-grid"><div class="detail-block"><h4>Application status</h4><p>Prepared → Approved → Applied → Under review</p><p>Current: ${esc(label(r.status))} · ${esc((r.applied_at || r.date || "").slice(0,10))}</p><p>Next: ${esc(r.next_action || "Review status")}</p></div><div class="detail-block"><h4>Application materials</h4><p>${r.resume_identity ? "Tailored resume snapshot recorded" : "No resume snapshot recorded"}${r.resume_identity && r.job_id ? ` · <a href="/api/resume/${encodeURIComponent(r.job_id)}" target="_blank" rel="noreferrer">Open resume</a>` : ""}</p><p>${r.answers_version ? "Reviewed answers recorded" : "No answer snapshot recorded"}</p>${r.application_url ? `<a href="${esc(r.application_url)}" target="_blank" rel="noreferrer">Application page</a>` : ""}</div><div class="detail-block"><h4>Submitted answers</h4>${answers ? `<ul>${answers}</ul>` : "<p>No submitted answer snapshot recorded.</p>"}${r.recruiter_message ? `<p><b>Message:</b> ${esc(r.recruiter_message)}</p>` : ""}${r.cover_note ? `<p><b>Cover note:</b> ${esc(r.cover_note)}</p>` : ""}</div><div class="detail-block"><h4>Timeline</h4>${timeline ? `<ul>${timeline}</ul>` : "<p>No timeline events recorded.</p>"}<p>Follow-up · ${esc(r.follow_up || "Not set")}</p>${r.follow_up && !r.follow_up_completed ? `<button data-follow-complete="${esc(r.job_id || r.attempt_id)}" data-attempt="${esc(r.attempt_id)}">Mark follow-up complete</button>` : ""}</div></div>`;
 }
 
 function editorHtml(key, r, meta, ids = null) {
@@ -627,19 +725,23 @@ function renderJobsMeta(generatedAt, meta) {
 
 function renderJobs() {
   const st = $("#jf-status").value, src = $("#jf-source").value;
+  const fit = $("#jf-fit").value, verificationFilter = $("#jf-verification").value, focus = $("#jf-focus").value;
   const minScore = Number($("#jf-score").value) || 0;
   const sort = $("#jf-sort").value;
   const hideApplied = $("#jf-hide-applied").checked;
   let rows = JOBS.filter((j) =>
     (!st || (j.tracked && j.tracked.status === st)) &&
     (!src || j.source === src) &&
+    (!verificationFilter || j.verification?.status === verificationFilter) &&
+    (!fit || (fit === "strong" ? Number(j.score) >= 80 && j.eligibility?.status !== "not_eligible" : fit === "good" ? Number(j.score) >= 65 && Number(j.score) < 80 && j.eligibility?.status !== "not_eligible" : j.decision === "review" || j.eligibility?.status === "review")) &&
+    (!focus || (focus === "internship" ? /intern(ship)?/i.test(j.title) : focus === "remote" ? j.remote === true || /remote/i.test(j.location || "") : focus === "bengaluru" ? /bengaluru|bangalore/i.test(j.location || "") : focus === "ai" ? /\b(ai|ml|machine learning|artificial intelligence)\b/i.test(`${j.title} ${j.description || ""}`) : /software|developer|engineer|sde/i.test(j.title))) &&
     ((j.score ?? -1) >= minScore || !minScore) &&
     (!hideApplied || !j.already_applied));
   const hiddenN = hideApplied ? JOBS.filter((j) => j.already_applied).length : 0;
-  rows = rows.slice().sort((a, b) => sort === "company"
-    ? a.company.localeCompare(b.company)
-    : sort === "newest"
+  rows = rows.slice().sort((a, b) => sort === "newest"
       ? (b.posted_at || b.first_seen || "").localeCompare(a.posted_at || a.first_seen || "")
+      : sort === "match" ? (b.score ?? -1) - (a.score ?? -1)
+      : sort === "verification" ? ((_VERIFICATION_RANK[b.verification?.status] ?? 1) - (_VERIFICATION_RANK[a.verification?.status] ?? 1))
       : ((_VERIFICATION_RANK[b.verification?.status] ?? 1) -
          (_VERIFICATION_RANK[a.verification?.status] ?? 1)) ||
         ((_ELIGIBILITY_RANK[b.eligibility?.status] ?? 1) -
@@ -650,10 +752,9 @@ function renderJobs() {
       ' job(s) you already applied to are hidden ? untick ?Hide applied? to show them.</div>' : "";
   if (!rows.length) {
     $("#jobs-table").innerHTML = hiddenNote + (JOBS.length
-      ? '<div class="empty"><h3>No jobs match these filters.</h3><p>Adjust your status, source, or score filters to explore more results.</p></div>'
-      : '<div class="starter"><h3>Your next opportunity starts here.</h3>' +
-        '<p>Search fresh opportunities and Job Agent will rank roles against your profile.</p>' +
-        '<button class="primary" data-find-jobs="1">Find new jobs</button></div>');
+      ? '<div class="empty"><h3>No opportunities match those filters.</h3><p>Try expanding remote locations, target roles, or internship duration.</p></div>'
+      : '<div class="starter"><h3>Your agent is still looking.</h3><p>Run a search to find opportunities based on your profile.</p>' +
+        '<button class="primary" data-find-jobs="1">Find opportunities</button> <button data-goto-profile="1">Complete profile</button></div>');
     return;
   }
   const cards = rows.map((j) => {
@@ -776,8 +877,10 @@ async function loadJobs() {
 async function loadProfile() {
   const data = await api("/api/profile");
   PROFILE = data.profile;
+  PROFILE_ANALYSIS = data.analysis || {};
   renderProfileSection();
-  renderProfileAnalysis(data.analysis || {});
+  renderProfileAnalysis(PROFILE_ANALYSIS);
+  renderToday();
   $("#profile-status").textContent = data.configured
     ? "Loaded from data/career_facts.yaml" : "No profile saved yet; save to create data/career_facts.yaml";
 }
@@ -792,8 +895,10 @@ async function saveProfile() {
     PROFILE = {...PROFILE, ...edits};
     const data = await put("/api/profile", PROFILE);
     PROFILE = data.profile;
+    PROFILE_ANALYSIS = data.analysis || {};
     renderProfileSection();
-    renderProfileAnalysis(data.analysis || {});
+    renderProfileAnalysis(PROFILE_ANALYSIS);
+    renderToday();
     status.textContent = `Saved profile v${data.profile.profile_version}; changes require fresh application review.`;
   } catch (e) { status.textContent = e.message; status.classList.add("err"); }
 }
@@ -815,19 +920,74 @@ function renderProfileSection() {
 }
 
 function renderProfileAnalysis(a) {
-  $("#profile-strength").textContent = `Profile ${a.profile_strength || "incomplete"} · v${a.profile_version || 0}`;
-  $("#profile-completeness").textContent = `Completeness ${a.completeness ?? 0}%`;
-  const tiles = [
-    ["Target roles", (a.target_roles || []).join(", ") || "Not set"],
-    ["Evidence-backed skills", (a.strongest_skills || []).slice(0, 5).join(", ") || "None yet"],
-    ["Preferred locations", (a.target_locations || []).join(", ") || "Not set"],
-    ["Career direction", a.career_direction || "unknown"]
-  ];
-  $("#profile-overview").innerHTML = tiles.map(([k,v]) => `<div class="stat"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
-  $("#profile-missing").innerHTML = `<b>What to add:</b> ${esc((a.missing || []).join(" · ") || "Core profile details are complete")}`;
+  const pct = a.completeness ?? 0;
+  $("#profile-completeness-head").textContent = `${pct}% complete`;
+  $("#profile-completeness-head").className = `pill ${pct >= 80 ? "p-strong" : pct >= 40 ? "p-possible" : "p-needs_review"}`;
   const unsupported = a.unknown_or_unsupported_skills || [];
-  const sources = (a.skill_evidence || []).map((x) => `${x.skill}: ${x.source}`).join(" · ");
-  $("#profile-evidence").innerHTML = `<b>Evidence status:</b> ${esc((a.evidence_backed_skills || []).length)} backed skill(s); ${esc(unsupported.length)} claimed skill(s) need evidence${unsupported.length ? ` (${esc(unsupported.join(", "))})` : ""}. ${sources ? `<br><b>Sources:</b> ${esc(sources)}` : ""}`;
+  const skillsEvidence = a.skill_evidence || [];
+  const groups = PROFILE.skills_inventory || {};
+  const skillHtml = Object.entries(groups).map(([group, skills]) => `<p><b>${esc(group)}</b><br>${skills.map((skill) => {
+    const evidence = skillsEvidence.find((x) => x.skill.toLowerCase() === skill.toLowerCase());
+    return `<span class="profile-chip">${esc(skill)} ${evidence ? `<span class="evidence-mark" title="${esc(evidence.source)}">✓ Evidence</span>` : "<span title=\"Claimed; evidence not recorded\">· Claimed</span>"}</span>`;
+  }).join("")}</p>`).join("") || '<p>No skills added yet.</p>';
+  const projects = PROFILE.projects || [];
+  const projectHtml = projects.length ? `<ul>${projects.map((p) => `<li><b>${esc(p.name)}</b>${p.description ? ` · ${esc(p.description)}` : ""}<br><span>${(p.technologies || []).map(esc).join(" · ")}</span>${p.github_url ? ` · <a href="${esc(p.github_url)}" target="_blank" rel="noreferrer">GitHub</a>` : ""}${p.live_url ? ` · <a href="${esc(p.live_url)}" target="_blank" rel="noreferrer">Live demo</a>` : ""}${p.evidence?.length ? `<br><span class="evidence-mark">Evidence: ${p.evidence.map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>` : '<p>No projects added yet.</p>';
+  const education = [...(PROFILE.education_details || []).map((e) => `${e.degree}${e.field ? ` · ${e.field}` : ""}${e.college ? ` · ${e.college}` : ""}${e.graduation_year ? ` · ${e.graduation_year}` : ""}`), ...(PROFILE.education || [])];
+  const employers = PROFILE.employers || [];
+  const prefs = [...(a.target_roles || []), ...(a.target_locations || [])];
+  $("#profile-workspace").innerHTML = `<article class="card profile-section-card"><h3>Profile overview</h3><p><b>Target role</b> · ${esc((a.target_roles || []).join(", ") || "Not set")}</p><p><b>Career direction</b> · ${esc(a.career_direction || "Not set")}</p><p><b>Location</b> · ${esc(PROFILE.location || "Not set")}</p><p><b>Work preference</b> · ${esc(a.preferred_work_mode || "unknown")}</p><p><b>Availability</b> · ${esc(PROFILE.availability || PROFILE.internship_duration || "Not set")}</p>${PROFILE.github_profile_url ? `<p><b>GitHub</b> · <a href="${esc(PROFILE.github_profile_url)}" target="_blank" rel="noreferrer">Open profile</a></p>` : ""}<div class="profile-progress"><span style="width:${pct}%"></span></div><p style="margin-top:8px"><b>Profile strength · ${pct}%</b></p><p>${a.profile_strength === "strong" ? "You're ready for personalized job matching." : "Complete missing details to improve matching."}</p><button class="ghost" data-profile-section="preferences">Edit preferences</button></article>
+    <article class="card profile-section-card"><h3>Skills & evidence</h3>${skillHtml}${unsupported.length ? `<p>Evidence needed: ${unsupported.map(esc).join(", ")}</p>` : ""}<button class="ghost" data-profile-section="skills">Edit skills</button></article>
+    <article class="card profile-section-card"><h3>Projects</h3>${projectHtml}<button class="ghost" data-profile-section="projects">Edit projects</button></article>
+    <article class="card profile-section-card"><h3>Education</h3>${education.length ? `<ul>${education.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<p>Education details have not been added.</p>"}<button class="ghost" data-profile-section="education">Edit education</button></article>
+    <article class="card profile-section-card"><h3>Experience</h3>${employers.length ? `<ul>${employers.map((e) => `<li><b>${esc(e.title)}</b> · ${esc(e.company)} · ${esc(e.experience_type || "employment")} · ${esc(e.duration)}</li>`).join("")}</ul>` : "<p>Work, internship, freelance, open-source, or leadership records have not been added.</p>"}<button class="ghost" data-profile-section="experience">Edit experience</button></article>
+    <article class="card profile-section-card"><h3>Preferences</h3>${prefs.length ? prefs.map((x) => `<span class="profile-chip">${esc(x)}</span>`).join("") : "<p>Career preferences are not set.</p>"}<p>Remote · ${esc(a.preferred_work_mode || "unknown")}</p><p>Internship · ${PROFILE.internship_preference === null || PROFILE.internship_preference === undefined ? "unknown" : PROFILE.internship_preference ? "preferred" : "not preferred"}</p><p>Compensation · ${esc(PROFILE.minimum_compensation || "Not set")}</p><p>Availability · ${esc(PROFILE.availability || "Not set")}</p><button class="ghost" data-profile-section="preferences">Edit preferences</button></article>`;
+  const missing = a.missing || [];
+  const missingSection = (m) => /education/i.test(m) ? "education" : /skill|evidence/i.test(m) ? "skills" : /project/i.test(m) ? "projects" : /github/i.test(m) ? "evidence" : /experience/i.test(m) ? "experience" : /availability|internship/i.test(m) ? "preferences" : "overview";
+  $("#profile-intelligence").innerHTML = `<p><b>Target roles</b><br>${esc((a.target_roles || []).join(" · ") || "Not set")}</p><p style="margin-top:8px"><b>Strongest areas</b><br>${esc((a.strongest_skills || []).join(" · ") || "No evidence-backed skills yet")}</p><p style="margin-top:8px"><b>Strong project evidence</b><br>${esc((a.strongest_projects || []).join(" · ") || "No evidence-backed projects yet")}</p><p style="margin-top:8px"><b>Improve your profile</b></p>${missing.length ? `<ul>${missing.map((m) => `<li><button class="ghost" data-profile-section="${missingSection(m)}">${esc(m)}</button></li>`).join("")}</ul>` : "<p>Profile details are complete.</p>"}`;
+}
+
+function renderInsights() {
+  const evidence = PROFILE_ANALYSIS.evidence_backed_skills || [];
+  const missingCounts = {};
+  const locations = {};
+  for (const job of JOBS) {
+    for (const gap of (job.supported_gaps || [])) {
+      const skill = String(gap).split(/[—–-]/)[0].trim();
+      if (skill) missingCounts[skill] = (missingCounts[skill] || 0) + 1;
+    }
+    if (job.location) locations[job.location] = (locations[job.location] || 0) + 1;
+  }
+  const rankBars = (counts, empty) => {
+    const entries = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0,6);
+    if (!entries.length) return `<p>${empty}</p>`;
+    const max = Math.max(...entries.map((x) => x[1]));
+    return entries.map(([name,count]) => `<div class="bar-row"><span>${esc(name)}</span><span class="bar-track"><i style="width:${Math.max(8, count/max*100)}%"></i></span><b>${count}</b></div>`).join("");
+  };
+  const tracked = APPS.length;
+  const applied = APPS.filter((x) => ["applied","submitted","under_review","assessment","interviewing","offer"].includes(x.status)).length;
+  const topGap = Object.entries(missingCounts).sort((a,b) => b[1]-a[1])[0];
+  const advice = topGap ? `${topGap[0]} appears as an unevidenced required skill in ${topGap[1]} current ${topGap[1] === 1 ? "opportunity" : "opportunities"}. If you have experience with it, add a verifiable project or experience source to your profile.`
+    : "No recurring evidence gaps can be identified from the current opportunities.";
+  $("#insights-content").innerHTML = `<article class="card insight-card"><h3>Your evidence-backed skills</h3>${evidence.length ? evidence.map((skill) => `<span class="profile-chip"><span class="evidence-mark">✓</span> ${esc(skill)}</span>`).join("") : "<p>Add skill and project sources to see evidence-backed strengths.</p>"}</article><article class="card insight-card"><h3>Common required-skill gaps</h3>${rankBars(missingCounts,"No required skill gaps recorded in current roles.")}</article><article class="card insight-card"><h3>Opportunity locations</h3>${rankBars(locations,"No opportunity location data available yet.")}</article><article class="card insight-card"><h3>Application outcomes</h3><p>${tracked} tracked application(s); ${applied} reached applied or later status.</p><p>Conversion rate: ${tracked ? Math.round(applied/tracked*100) + "%" : "Not available until applications are tracked."}</p></article><article class="card insight-card"><h3>Career recommendation</h3><p>${esc(advice)}</p></article>`;
+}
+
+function pageFromHash() {
+  const value = location.hash.replace(/^#/, "");
+  const aliases = {"sec-today":"today", "sec-recommendation":"today", "sec-jobs":"opportunities", "sec-apps":"applications", "sec-profile":"profile", "sec-pipeline":"profile"};
+  return aliases[value] || (["today","profile","opportunities","applications","insights"].includes(value) ? value : "today");
+}
+
+function showPage(page = pageFromHash()) {
+  document.querySelectorAll("#app-main > section[data-page]").forEach((section) => {
+    section.hidden = section.dataset.page !== page;
+  });
+  document.querySelectorAll("[data-page-link]").forEach((link) => {
+    const active = link.dataset.pageLink === page;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
+  });
+  if (location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
+  window.scrollTo(0,0);
 }
 
 async function runSearch() {
@@ -1177,7 +1337,21 @@ function alertBar(msg) {
 
 /* ── wiring ───────────────────────────────────────────────────────────── */
 document.addEventListener("click", (ev) => {
-  const t = ev.target;
+  const t = ev.target.closest("button,a") || ev.target;
+  if (t.dataset.appTab !== undefined) { $("#af-status").value = t.dataset.appTab; renderApps(); }
+  if (t.dataset.appDetail) {
+    const panel = document.querySelector(`[data-detail="${CSS.escape(t.dataset.appDetail)}"]`);
+    if (panel) { panel.classList.toggle("hidden"); t.setAttribute("aria-expanded", String(!panel.classList.contains("hidden"))); }
+  }
+  if (t.dataset.profileSection) {
+    showPage("profile"); $("#profile-section").value = t.dataset.profileSection; renderProfileSection();
+    $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  if (t.dataset.gotoProfile) showPage("profile");
+  if (t.dataset.gotoOpportunities || t.dataset.gotoOpportunity) {
+    showPage("opportunities");
+    if (t.dataset.gotoOpportunity) document.querySelector(`[data-job-card="${CSS.escape(t.dataset.gotoOpportunity)}"]`)?.scrollIntoView({behavior:"smooth",block:"center"});
+  }
   const out = (id) => document.querySelector(`[data-out="${id}"]`);
   const dummyOut = {textContent: "", classList: {add() {}, remove() {}}};
   if (t.dataset.tailor) runTailor(t.dataset.tailor, out(t.dataset.tailor));
@@ -1214,21 +1388,6 @@ document.addEventListener("click", (ev) => {
     const ed = card?.nextElementSibling;
     if (ed && ed.dataset.editor === t.dataset.edit) ed.classList.toggle("hidden");
   }
-  const tile = t.closest("[data-tile]");
-  if (tile) {
-    // an actionable stat: clicking filters the applications list to it
-    const k = tile.dataset.tile;
-    const sel = $("#af-status");
-    if (k === "total") {
-      sel.value = "";
-    } else {
-      if (![...sel.options].some((o) => o.value === k)) {
-        sel.insertAdjacentHTML("beforeend", `<option value="${k}">${esc(label(k))}</option>`);
-      }
-      sel.value = k;
-    }
-    renderApps();
-  }
   if (t.dataset.save) {
     const id = t.dataset.save;
     saveTrack(JSON.parse(t.dataset.ids || "{}"), {
@@ -1259,7 +1418,7 @@ document.addEventListener("change", (ev) => {
               JSON.parse(t.dataset.meta || "{}"), null);
 });
 ["af-status", "af-source", "af-sort"].forEach((id) => $("#" + id).addEventListener("change", renderApps));
-["jf-status", "jf-source", "jf-sort"].forEach((id) => $("#" + id).addEventListener("change", renderJobs));
+["jf-status", "jf-source", "jf-sort", "jf-fit", "jf-verification", "jf-focus"].forEach((id) => $("#" + id).addEventListener("change", renderJobs));
 $("#jf-score").addEventListener("input", renderJobs);
 $("#jf-hide-applied").addEventListener("change", renderJobs);
 $("#btn-search").addEventListener("click", runSearch);
@@ -1272,6 +1431,8 @@ $("#apps-toggle").addEventListener("click", () => {
   btn.textContent = hidden ? "Show" : "Hide";
   btn.setAttribute("aria-expanded", String(!hidden));
 });
+window.addEventListener("hashchange", () => showPage());
+showPage();
 
 loadApps().catch((e) => $("#apps-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
 loadJobs().catch((e) => $("#jobs-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
