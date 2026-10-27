@@ -300,6 +300,16 @@
   .profile-progress span { display:block; height:100%; border-radius:99px; background:var(--accent); }
   .profile-workspace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
   .profile-section-card,.insight-card { padding:18px; }
+  .profile-onboarding { margin:0 0 16px; padding:22px; border:1px solid #dfe3f2; background:linear-gradient(120deg,#fff,#f7f8ff); }
+  .profile-onboarding h3 { margin:0 0 7px; font-size:18px; }
+  .profile-onboarding p { max-width:680px; color:var(--muted); font-size:13px; }
+  .onboarding-progress { display:flex; justify-content:space-between; max-width:420px; margin:13px 0 -11px; color:var(--muted); font-size:12px; }
+  .profile-missing-list { display:grid; gap:7px; margin:8px 0 0; padding:0; list-style:none; }
+  .profile-missing-list li { display:flex; align-items:flex-start; gap:8px; }
+  .text-button { padding:0; border:0; background:transparent; color:var(--accent); text-align:left; }
+  .profile-editor-guide { margin:12px 0; padding:14px; border-radius:10px; background:#f7f8fc; }
+  .profile-editor-guide p { margin:5px 0 10px; color:var(--muted); font-size:12px; }
+  #profile-status { line-height:1.7; }
   .profile-section-card h3,.insight-card h3 { margin:0 0 10px; font-size:14px; }
   .profile-section-card p,.profile-section-card li,.insight-card p,.detail-block p,.detail-block li { color:var(--muted); font-size:12px; }
   .profile-section-card ul,.detail-block ul { margin:0; padding-left:18px; display:grid; gap:6px; }
@@ -431,6 +441,7 @@
 <!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
 <section id="sec-profile" data-page="profile">
   <div class="section-heading"><div><h2>My Profile</h2><div class="sec-sub">Your AI career profile · the foundation of personalized opportunities.</div></div><b id="profile-completeness-head" class="pill p-needs_review">Profile incomplete</b></div>
+  <div class="card profile-onboarding" id="profile-onboarding" aria-live="polite"></div>
   <div class="profile-workspace" id="profile-workspace"></div>
   <div class="section-heading" style="margin-top:25px"><div><h2>Profile intelligence</h2><div class="sec-sub">A transparent summary based on the evidence you have added.</div></div></div>
   <div class="card profile-section-card" id="profile-intelligence"></div>
@@ -442,7 +453,7 @@
       <option value="experience">Experience & achievements</option><option value="preferences">Career preferences</option>
       <option value="evidence">Evidence & GitHub</option>
     </select></label></div>
-    <div class="sec-sub" id="profile-section-help">Edit only this section; other profile information is preserved when you save.</div>
+    <div class="profile-editor-guide" id="profile-section-help"></div>
     <textarea id="profile-json" aria-label="Selected developer profile section JSON" rows="16" spellcheck="false" style="width:100%;font:12px/1.5 ui-monospace,monospace"></textarea>
     <div class="toolbar"><button class="primary" id="profile-save">Save profile</button><span id="profile-status" aria-live="polite"></span></div>
   </div>
@@ -899,7 +910,10 @@ async function saveProfile() {
     renderProfileSection();
     renderProfileAnalysis(PROFILE_ANALYSIS);
     renderToday();
-    status.textContent = `Saved profile v${data.profile.profile_version}; changes require fresh application review.`;
+    const version = Number(data.profile?.profile_version ?? data.analysis?.profile_version ?? PROFILE.profile_version);
+    const versionText = Number.isInteger(version) && version >= 1 ? `Profile version ${version}` : "Profile version unavailable";
+    const completeness = Number.isFinite(Number(PROFILE_ANALYSIS.completeness)) ? Number(PROFILE_ANALYSIS.completeness) : 0;
+    status.innerHTML = `<b>Profile saved ✓</b><br>${esc(versionText)}<br>Completeness: ${completeness}%<br><span class="loc">Changes to your profile require fresh application review.</span>`;
   } catch (e) { status.textContent = e.message; status.classList.add("err"); }
 }
 
@@ -908,19 +922,20 @@ function renderProfileSection() {
   const view = Object.fromEntries(PROFILE_SECTIONS[section].map((key) => [key, PROFILE[key]]));
   $("#profile-json").value = JSON.stringify(view, null, 2);
   const help = {
-    overview: "Identity and current career level. Leave unknown details blank.",
-    skills: "Group skills by category and attach sources in skill_evidence. Only sourced skills count as evidence-backed.",
-    projects: "Add project details, measurable results only when supported, and evidence/source links.",
-    education: "Add degrees, institutions, branch, GPA, graduation year, and relevant coursework.",
-    experience: "Add internships, employment, freelance, open-source, hackathon, and leadership records with evidence.",
-    preferences: "Set target roles, locations, work mode, internship/full-time preference, compensation, and availability.",
-    evidence: "Add public GitHub profile/repository URLs and other profile evidence sources."
+    overview: ["Who are you?", "Basic details and career stage help the agent understand your background. Leave anything unknown blank.", "Edit overview"],
+    skills: ["What can you build?", "Add technologies you actually know. Evidence-backed skills improve job matching; add a source when you have one.", "Add skills"],
+    projects: ["What have you built?", "Projects give the agent evidence of your technical ability. Add only real work, and include links or evidence when available.", "Add a project"],
+    education: ["What have you studied?", "Education and coursework help the agent assess role requirements. Add only details that apply to you.", "Add education"],
+    experience: ["What experience do you have?", "Employment, internships, open source, and achievements can support matches. This section is optional if you have none yet.", "Add experience"],
+    preferences: ["What opportunity are you looking for?", "Target roles, locations, work mode, and availability guide job discovery. You can leave preferences unset.", "Set preferences"],
+    evidence: ["Show your work", "GitHub and other source links connect your profile claims and projects to real evidence. Add links only when available.", "Add GitHub or evidence"]
   };
-  $("#profile-section-help").textContent = help[section];
+  const [title, description, action] = help[section];
+  $("#profile-section-help").innerHTML = `<b>${esc(title)}</b><p>${esc(description)}</p><button type="button" class="ghost" data-focus-profile-editor>${esc(action)}</button>`;
 }
 
 function renderProfileAnalysis(a) {
-  const pct = a.completeness ?? 0;
+  const pct = Number.isFinite(Number(a.completeness)) ? Number(a.completeness) : 0;
   $("#profile-completeness-head").textContent = `${pct}% complete`;
   $("#profile-completeness-head").className = `pill ${pct >= 80 ? "p-strong" : pct >= 40 ? "p-possible" : "p-needs_review"}`;
   const unsupported = a.unknown_or_unsupported_skills || [];
@@ -935,15 +950,26 @@ function renderProfileAnalysis(a) {
   const education = [...(PROFILE.education_details || []).map((e) => `${e.degree}${e.field ? ` · ${e.field}` : ""}${e.college ? ` · ${e.college}` : ""}${e.graduation_year ? ` · ${e.graduation_year}` : ""}`), ...(PROFILE.education || [])];
   const employers = PROFILE.employers || [];
   const prefs = [...(a.target_roles || []), ...(a.target_locations || [])];
+  const strength = a.profile_strength || "incomplete";
+  const ready = strength === "strong";
+  const missing = Array.isArray(a.missing) ? a.missing : [];
+  const missingSection = (m) => /education/i.test(m) ? "education" : /skill|evidence/i.test(m) ? "skills" : /project/i.test(m) ? "projects" : /github/i.test(m) ? "evidence" : /experience/i.test(m) ? "experience" : /availability|internship|career preference|target role/i.test(m) ? "preferences" : "overview";
+  const missingHtml = missing.length ? `<ul class="profile-missing-list">${missing.map((m) => `<li><span aria-hidden="true">○</span><button type="button" class="text-button" data-profile-section="${missingSection(m)}">${esc(m)}</button></li>`).join("")}</ul>` : (pct >= 100 && ready ? "<p>Profile details are complete.</p>" : `<p>Profile analysis reports ${pct}% completeness and ${esc(strength)} strength. No missing items were returned.</p>`);
+  $("#profile-onboarding").innerHTML = ready
+    ? `<h3>Your profile is ready.</h3><p>Find opportunities using your profile and evidence.</p><button type="button" class="primary" data-find-my-opportunities>Find My Opportunities</button>`
+    : `<h3>${pct < 40 ? "Build your career profile" : "Complete your profile"}</h3><p>Your AI agent uses these details to find and prioritize suitable opportunities. Add only information that applies to you.</p><div class="onboarding-progress"><span>Profile completeness</span><b>${pct}%</b></div><div class="profile-progress"><span style="width:${pct}%"></span></div><button type="button" class="primary" data-start-profile>${pct < 40 ? "Start Profile" : "Complete Profile"}</button>`;
   $("#profile-workspace").innerHTML = `<article class="card profile-section-card"><h3>Profile overview</h3><p><b>Target role</b> · ${esc((a.target_roles || []).join(", ") || "Not set")}</p><p><b>Career direction</b> · ${esc(a.career_direction || "Not set")}</p><p><b>Location</b> · ${esc(PROFILE.location || "Not set")}</p><p><b>Work preference</b> · ${esc(a.preferred_work_mode || "unknown")}</p><p><b>Availability</b> · ${esc(PROFILE.availability || PROFILE.internship_duration || "Not set")}</p>${PROFILE.github_profile_url ? `<p><b>GitHub</b> · <a href="${esc(PROFILE.github_profile_url)}" target="_blank" rel="noreferrer">Open profile</a></p>` : ""}<div class="profile-progress"><span style="width:${pct}%"></span></div><p style="margin-top:8px"><b>Profile strength · ${pct}%</b></p><p>${a.profile_strength === "strong" ? "You're ready for personalized job matching." : "Complete missing details to improve matching."}</p><button class="ghost" data-profile-section="preferences">Edit preferences</button></article>
     <article class="card profile-section-card"><h3>Skills & evidence</h3>${skillHtml}${unsupported.length ? `<p>Evidence needed: ${unsupported.map(esc).join(", ")}</p>` : ""}<button class="ghost" data-profile-section="skills">Edit skills</button></article>
     <article class="card profile-section-card"><h3>Projects</h3>${projectHtml}<button class="ghost" data-profile-section="projects">Edit projects</button></article>
     <article class="card profile-section-card"><h3>Education</h3>${education.length ? `<ul>${education.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<p>Education details have not been added.</p>"}<button class="ghost" data-profile-section="education">Edit education</button></article>
     <article class="card profile-section-card"><h3>Experience</h3>${employers.length ? `<ul>${employers.map((e) => `<li><b>${esc(e.title)}</b> · ${esc(e.company)} · ${esc(e.experience_type || "employment")} · ${esc(e.duration)}</li>`).join("")}</ul>` : "<p>Work, internship, freelance, open-source, or leadership records have not been added.</p>"}<button class="ghost" data-profile-section="experience">Edit experience</button></article>
     <article class="card profile-section-card"><h3>Preferences</h3>${prefs.length ? prefs.map((x) => `<span class="profile-chip">${esc(x)}</span>`).join("") : "<p>Career preferences are not set.</p>"}<p>Remote · ${esc(a.preferred_work_mode || "unknown")}</p><p>Internship · ${PROFILE.internship_preference === null || PROFILE.internship_preference === undefined ? "unknown" : PROFILE.internship_preference ? "preferred" : "not preferred"}</p><p>Compensation · ${esc(PROFILE.minimum_compensation || "Not set")}</p><p>Availability · ${esc(PROFILE.availability || "Not set")}</p><button class="ghost" data-profile-section="preferences">Edit preferences</button></article>`;
-  const missing = a.missing || [];
-  const missingSection = (m) => /education/i.test(m) ? "education" : /skill|evidence/i.test(m) ? "skills" : /project/i.test(m) ? "projects" : /github/i.test(m) ? "evidence" : /experience/i.test(m) ? "experience" : /availability|internship/i.test(m) ? "preferences" : "overview";
-  $("#profile-intelligence").innerHTML = `<p><b>Target roles</b><br>${esc((a.target_roles || []).join(" · ") || "Not set")}</p><p style="margin-top:8px"><b>Strongest areas</b><br>${esc((a.strongest_skills || []).join(" · ") || "No evidence-backed skills yet")}</p><p style="margin-top:8px"><b>Strong project evidence</b><br>${esc((a.strongest_projects || []).join(" · ") || "No evidence-backed projects yet")}</p><p style="margin-top:8px"><b>Improve your profile</b></p>${missing.length ? `<ul>${missing.map((m) => `<li><button class="ghost" data-profile-section="${missingSection(m)}">${esc(m)}</button></li>`).join("")}</ul>` : "<p>Profile details are complete.</p>"}`;
+  const overviewTitle = [...document.querySelectorAll("#profile-workspace h3")].find((node) => node.textContent === "Profile overview");
+  const strengthLine = overviewTitle?.parentElement.querySelectorAll("p");
+  const strengthParagraph = strengthLine && [...strengthLine].find((node) => node.textContent.includes("Profile strength"));
+  if (strengthParagraph) strengthParagraph.innerHTML = `<b>Profile strength · ${esc(strength)}</b>`;
+  // Render the backend's actual missing fields; never infer completion from an empty list alone.
+  $("#profile-intelligence").innerHTML = `<p><b>Profile strength</b><br>${esc(strength)}</p><p><b>Completeness</b><br>${pct}%</p><p><b>Target roles</b><br>${esc((a.target_roles || []).join(", ") || "Not set")}</p><p><b>Evidence-backed skills</b><br>${esc((a.evidence_backed_skills || []).join(", ") || "None recorded yet")}</p><p><b>Evidence-backed projects</b><br>${esc((a.strongest_projects || []).join(", ") || "None recorded yet")}</p><p><b>${missing.length ? "Improve your profile" : ready ? "Profile complete" : "Profile review"}</b></p>${missingHtml}`;
 }
 
 function renderInsights() {
@@ -1347,6 +1373,14 @@ document.addEventListener("click", (ev) => {
     showPage("profile"); $("#profile-section").value = t.dataset.profileSection; renderProfileSection();
     $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"});
   }
+  if (t.dataset.startProfile !== undefined) {
+    showPage("profile"); $("#profile-section").value = "overview"; renderProfileSection();
+    $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"}); $("#profile-json").focus();
+  }
+  if (t.dataset.focusProfileEditor !== undefined) {
+    $("#profile-json").scrollIntoView({behavior:"smooth",block:"center"}); $("#profile-json").focus();
+  }
+  if (t.dataset.findMyOpportunities !== undefined) runSearch().then(() => showPage("opportunities"));
   if (t.dataset.gotoProfile) showPage("profile");
   if (t.dataset.gotoOpportunities || t.dataset.gotoOpportunity) {
     showPage("opportunities");
