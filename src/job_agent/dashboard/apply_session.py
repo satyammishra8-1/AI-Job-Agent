@@ -57,6 +57,32 @@ _WINDOW_CLOSED = (
 )
 
 
+def automatic_block_reason(form_readable: bool, plan: FillPlan, state: dict | None) -> str | None:
+    """Pure submit safety gate, shared by live sessions and mocked form tests."""
+    from job_agent.apply.fields import FieldType
+    from job_agent.apply.filler import _is_legal_consent
+    from job_agent.apply.form_reader import _is_eeo
+
+    if not form_readable or not isinstance(state, dict):
+        return "Application form is unreadable or blocked by login/CAPTCHA."
+    page_text = str(state.get("page_text", "")).lower()
+    if any(term in page_text for term in ("captcha", "verify you are human", "sign in to apply",
+                                           "log in to apply", "create an account to apply")):
+        return "Login or anti-bot challenge needs human intervention."
+    sensitive = [u for u in plan.unfilled if
+                 u.field.field_type in {FieldType.CREDENTIAL, FieldType.EEO}
+                 or _is_legal_consent(u.field)
+                 or _is_eeo(u.field.label, u.field.name)]
+    if sensitive:
+        return "Legal, consent, identity, or demographic fields need user-provided answers."
+    missing = plan.missing_required()
+    if missing:
+        return f"{len(missing)} required field(s) need user input."
+    if state.get("invalid") or any(not form.get("valid", True) for form in state.get("forms", [])):
+        return "The live application form is invalid or incomplete."
+    return None
+
+
 def _is_page_closed(exc: Exception) -> bool:
     """True for Playwright's closed-target errors (window closed mid-session).
 
@@ -125,6 +151,14 @@ class ApplySession:
 
     def submit(self, approval_token: str) -> dict:
         return self._invoke(self._submit, approval_token)
+
+    def submit_automatically(self, authorized) -> dict:
+        """Submit under a persistent policy only when every safe gate passes.
+
+        ``authorized`` is re-evaluated immediately before the click so pause or
+        revocation prevents a queued browser session from submitting.
+        """
+        return self._invoke(self._submit_automatically, authorized)
 
     def cancel(self) -> dict:
         return self._invoke(self._cancel)
@@ -380,6 +414,28 @@ class ApplySession:
             self._closed = True
         return {"result": {"status": result.status, "reason": result.reason,
                            "screenshot": result.screenshot}, **self._state()}
+
+    def _submit_automatically(self, stack: ExitStack, authorized) -> dict:
+        if not callable(authorized) or not authorized():
+            raise SubmitBlocked("standing authorization is disabled; nothing was submitted")
+        state = self._browser_state()
+        reason = automatic_block_reason(self._form_readable, self._plan, state)
+        if reason:
+            return self._pause_automatic(reason)
+        if not authorized():
+            raise SubmitBlocked("standing authorization was disabled before submission")
+        token = self._review_digest()
+        self._last_review_digest = token
+        result = self._submit(stack, token)
+        if (result.get("result") or {}).get("status") != "submitted":
+            self._closed = True
+        return result
+
+    def _pause_automatic(self, reason: str) -> dict:
+        if self._attempt_id:
+            update_status(self._tracker_path, self._attempt_id, "paused", reason)
+        self._closed = True
+        return {"result": {"status": "paused", "reason": reason}, **self._state()}
 
     def _cancel(self, stack: ExitStack) -> dict:
         if self._attempt_id:

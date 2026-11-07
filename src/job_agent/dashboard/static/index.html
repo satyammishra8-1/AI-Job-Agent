@@ -474,6 +474,32 @@
     </div>
   </div>
   <div class="today-grid" id="today-summary" aria-live="polite"></div>
+  <div class="card" id="autonomous-panel" style="margin-top:18px">
+    <div class="section-heading"><div><h2>Autonomous applications</h2>
+      <div class="sec-sub">Scheduled discovery and policy-based eligibility. Live forms that need login, CAPTCHA, legal answers, or unsupported controls pause for you.</div></div>
+      <button class="primary" id="autonomous-toggle" type="button">Loading…</button></div>
+    <div id="autonomous-stats" class="today-grid" aria-live="polite"></div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0">
+      <label>Daily application limit <input id="auto-limit" type="number" min="1" max="100" value="5"></label>
+      <label>Minimum match <input id="auto-score" type="number" min="0" max="100" value="70"></label>
+      <label>Discovery interval (minutes) <input id="auto-interval" type="number" min="30" max="10080" value="360"></label>
+    </div>
+    <details style="margin:12px 0"><summary>Eligibility filters</summary>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:12px">
+        <label>Allowed locations <input id="auto-locations" placeholder="Use profile preferences"></label>
+        <label>Work modes <input id="auto-modes" placeholder="remote, hybrid, onsite"></label>
+        <label>Internship durations <input id="auto-durations" placeholder="Use profile preference"></label>
+        <label>Graduation years <input id="auto-graduation" placeholder="e.g. 2027, 2028"></label>
+        <label>Academic years <input id="auto-years" placeholder="e.g. 3rd year, final year"></label>
+        <label>Degree branches <input id="auto-branches" placeholder="Use profile education"></label>
+        <label>Target roles <input id="auto-roles" placeholder="Use profile target roles"></label>
+        <label>Minimum stipend <input id="auto-stipend" type="number" min="0" placeholder="No minimum"></label>
+      </div>
+    </details>
+    <label style="display:flex;gap:8px;align-items:flex-start"><input id="auto-authorize" type="checkbox">
+      I authorize the agent to use these saved rules as standing authorization for automatic applications. I understand missing personal or legal answers, login, CAPTCHA, and unsupported forms will pause an application.</label>
+    <div id="autonomous-activity" style="margin-top:12px"></div>
+  </div>
 </section>
 
 <section id="sec-recommendation" data-page="today">
@@ -1324,6 +1350,60 @@ async function runSearch() {
   }
 }
 
+async function loadAutonomous() {
+  const data = await api("/api/autonomous");
+  const p = data.policy || {};
+  $("#auto-limit").value = p.max_applications_per_day || 5;
+  $("#auto-score").value = p.min_match_score ?? 70;
+  $("#auto-interval").value = p.interval_minutes || 360;
+  $("#auto-locations").value = (p.allowed_locations || []).join(", ");
+  $("#auto-modes").value = (p.allowed_work_modes || ["remote", "hybrid", "onsite"]).join(", ");
+  $("#auto-durations").value = (p.allowed_durations || []).join(", ");
+  $("#auto-graduation").value = (p.graduation_years || []).join(", ");
+  $("#auto-years").value = (p.academic_years || []).join(", ");
+  $("#auto-branches").value = (p.branches || []).join(", ");
+  $("#auto-roles").value = (p.target_roles || []).join(", ");
+  $("#auto-stipend").value = p.minimum_stipend ?? "";
+  $("#autonomous-toggle").textContent = p.enabled ? "Pause agent" : "Enable agent";
+  $("#autonomous-toggle").classList.toggle("primary", !p.enabled);
+  $("#autonomous-stats").innerHTML = [
+    ["Agent", p.enabled ? "ON" : "OFF"], ["Last discovery", data.last_discovery || "Not run"],
+    ["Next discovery", data.next_discovery || "—"], ["Discovered", data.discovered],
+    ["Eligible", data.eligible], ["Submitted", data.submitted], ["Paused", data.paused],
+    ["Failed", data.failed], ["Today", `${data.daily_count} / ${p.max_applications_per_day || 5}`]
+  ].map(([k,v]) => `<div class="card"><small>${esc(k)}</small><b>${esc(String(v))}</b></div>`).join("");
+  const activity = data.activity || [];
+  $("#autonomous-activity").innerHTML = activity.length
+    ? `<b>Recent activity</b><ul>${activity.slice(0,8).map(x => `<li>${esc(x.company)} — ${esc(x.title)}: ${esc(x.status)}${x.reasons?.length ? ` · ${esc(x.reasons[0])}` : ""}</li>`).join("")}</ul>`
+    : `<div class="sec-sub">No autonomous discovery activity yet.</div>`;
+}
+
+async function toggleAutonomous() {
+  const current = await api("/api/autonomous");
+  const enabled = !current.policy.enabled;
+  if (enabled && !$("#auto-authorize").checked) {
+    toast("Check the standing authorization box before enabling automatic applications.");
+    return;
+  }
+  const body = {...current.policy, enabled, authorize: enabled,
+    max_applications_per_day:Number($("#auto-limit").value) || 5,
+    min_match_score:Number($("#auto-score").value) || 0,
+    interval_minutes:Number($("#auto-interval").value) || 360,
+    allowed_locations:$("#auto-locations").value.split(",").map(x=>x.trim()).filter(Boolean),
+    allowed_work_modes:$("#auto-modes").value.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean),
+    allowed_durations:$("#auto-durations").value.split(",").map(x=>x.trim()).filter(Boolean),
+    graduation_years:$("#auto-graduation").value.split(",").map(x=>Number(x.trim())).filter(Number.isInteger),
+    academic_years:$("#auto-years").value.split(",").map(x=>x.trim()).filter(Boolean),
+    branches:$("#auto-branches").value.split(",").map(x=>x.trim()).filter(Boolean),
+    target_roles:$("#auto-roles").value.split(",").map(x=>x.trim()).filter(Boolean),
+    minimum_stipend:$("#auto-stipend").value ? Number($("#auto-stipend").value) : null};
+  try {
+    await put("/api/autonomous", body);
+    await loadAutonomous();
+    toast(enabled ? "Autonomous discovery enabled." : "Autonomous applications paused.");
+  } catch (e) { toast("Could not update autonomous mode: " + e.message); }
+}
+
 /* ── track: status / notes / follow-up ────────────────────────────────── */
 async function saveTrack(ids, fields, meta, outEl) {
   try {
@@ -1739,6 +1819,7 @@ document.addEventListener("change", (ev) => {
 $("#jf-score").addEventListener("input", renderJobs);
 $("#jf-hide-applied").addEventListener("change", renderJobs);
 $("#btn-search").addEventListener("click", runSearch);
+$("#autonomous-toggle").addEventListener("click", toggleAutonomous);
 $("#profile-save").addEventListener("click", saveProfile);
 $("#profile-editor-toggle").addEventListener("click", () => {
   if ($("#profile-editor").hidden) openProfileEditor(PROFILE_EDITOR_SECTION);
@@ -1758,6 +1839,7 @@ showPage();
 loadApps().catch((e) => $("#apps-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
 loadJobs().catch((e) => $("#jobs-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
 loadProfile().catch((e) => $("#profile-status").textContent = e.message);
+loadAutonomous().catch((e) => $("#autonomous-stats").textContent = e.message);
 </script>
 </body>
 </html>

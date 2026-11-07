@@ -9,6 +9,7 @@ backend reads ``.env`` exactly as the CLI does.
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime, timezone
 import os
 import tempfile
 from uuid import uuid4
@@ -28,6 +29,22 @@ _STATIC = Path(__file__).resolve().parent / "static"
 
 class SearchRequest(BaseModel):
     days: int = Field(default=30, ge=1, le=90)
+
+
+class AutonomousRequest(BaseModel):
+    enabled: bool
+    authorize: bool = False
+    max_applications_per_day: int = Field(default=5, ge=1, le=100)
+    min_match_score: int = Field(default=70, ge=0, le=100)
+    allowed_locations: list[str] = Field(default_factory=list)
+    allowed_work_modes: list[str] = Field(default_factory=lambda: ["remote", "hybrid", "onsite"])
+    allowed_durations: list[str] = Field(default_factory=list)
+    minimum_stipend: float | None = Field(default=None, ge=0)
+    graduation_years: list[int] = Field(default_factory=list)
+    academic_years: list[str] = Field(default_factory=list)
+    branches: list[str] = Field(default_factory=list)
+    target_roles: list[str] = Field(default_factory=list)
+    interval_minutes: int = Field(default=360, ge=30, le=10080)
 
 
 class JobRequest(BaseModel):
@@ -127,7 +144,121 @@ def create_app(*, data_dir: Path = Path("data"),
             lambda job_id, *, verification_reviewed=False: injected_factory(job_id))
     url_opener = url_opener or service.open_in_chrome
 
-    app = FastAPI(title="job-agent dashboard", docs_url=None, redoc_url=None)
+    from contextlib import asynccontextmanager
+    from job_agent.autonomy import (AutonomousPolicy, AutonomousQueue,
+        DiscoveryScheduler, authorization_update, evaluate_policy, idempotency_key,
+        load_policy, save_policy, submitted_today)
+    from job_agent.json_store import read_json
+    policy_path = data_dir / "autonomous_policy.json"
+    queue = AutonomousQueue(data_dir / "autonomous_queue.json")
+
+    def scheduled_discovery():
+        searcher(30)
+        view = service.jobs_view(data_dir / "last_search.json", data_dir / "applications.json",
+                                 facts_path=facts_path, out_dir=out_dir)
+        try:
+            facts = CareerFacts.model_validate(yaml.safe_load(facts_path.read_text()) or {}).model_dump(mode="json")
+        except Exception:
+            facts = {}
+        policy = load_policy(policy_path)
+        # Reconcile an interrupted submit before considering new work. A
+        # recorded receipt is definitive; an existing but unconfirmed attempt
+        # is paused for review and is never blindly resubmitted.
+        try:
+            from job_agent.apply.tracker import load_applications
+            tracked = load_applications(data_dir / "applications.json")
+        except Exception:
+            tracked = []
+        for key, item in list(queue.read().get("jobs", {}).items()):
+            if item.get("status") != "PROCESSING":
+                continue
+            prior = next((r for r in reversed(tracked) if
+                (item.get("job_id") and r.job_id == item.get("job_id")) or
+                (r.company.casefold() == str(item.get("company", "")).casefold() and
+                 r.title.casefold() == str(item.get("title", "")).casefold())), None)
+            if prior and prior.status in {"submitted", "applied", "under_review", "assessment", "interviewing", "offer"}:
+                queue.record(key, "SUBMITTED", "Recovered confirmed application from the tracker.")
+            elif prior:
+                queue.record(key, "PAUSED", "Previous submission outcome is uncertain; verify receipt before retrying.")
+            else:
+                queue.record(key, "ELIGIBLE", "Recovered before an application attempt was recorded.")
+        for job in view.get("jobs", []):
+            status, reasons = evaluate_policy(job, facts, policy)
+            queue.enqueue(job, status, reasons)
+        # A short allow-list keeps automatic interaction inside known public
+        # ATS forms. Cross-company aggregators and unknown destinations stay queued.
+        supported_sources = {"greenhouse", "lever", "ashby", "smartrecruiters"}
+        for job in view.get("jobs", []):
+            if not load_policy(policy_path).enabled:
+                break
+            status, reasons = evaluate_policy(job, facts, load_policy(policy_path))
+            if status != "ELIGIBLE" or job.get("source") not in supported_sources:
+                continue
+            key = idempotency_key(job)
+            item = queue.read().get("jobs", {}).get(key, {})
+            if item.get("status") in {"PROCESSING", "SUBMITTED", "PAUSED", "FAILED", "DUPLICATE"}:
+                continue
+            session = None
+            try:
+                from job_agent.apply.tracker import applied_markers, is_already_applied, load_applications
+                from job_agent.dashboard.apply_session import ApplySession
+                if is_already_applied(applied_markers(data_dir / "applications.json"),
+                        job_id=str(job.get("id", "")), company=job.get("company", ""),
+                        title=job.get("title", "")):
+                    queue.record(key, "DUPLICATE", "An application is already tracked.")
+                    continue
+                policy = load_policy(policy_path)
+                today = datetime.now().astimezone().date().isoformat()
+                daily_count = submitted_today(load_applications(data_dir / "applications.json"), day=today)
+                if daily_count >= policy.max_applications_per_day:
+                    queue.record(key, "DAILY_LIMIT", "Configured daily application limit reached; will retry after the daily reset.")
+                    continue
+                queue.record(key, "PROCESSING", "Preparing a truthful resume and checking the supported form.")
+                tailored = tailorer(str(job.get("id", "")))
+                if not tailored.get("ok"):
+                    queue.record(key, "FAILED", "Tailored resume could not be generated and validated.")
+                    continue
+                inputs = service._assemble_apply_inputs(str(job.get("id", "")),
+                    data_dir=data_dir, facts_path=facts_path, out_dir=out_dir)
+                session = ApplySession(record=inputs["record"], bank=inputs["bank"],
+                    contact=inputs["contact"], resume_path=inputs["resume_path"],
+                    drafter=inputs["drafter"], tracker_path=data_dir / "applications.json",
+                    out_dir=data_dir / "apply", preparation={})
+                state = session.start()
+                result = session.submit_automatically(lambda: load_policy(policy_path).enabled)
+                outcome = (result.get("result") or {})
+                final_status = outcome.get("status", "paused").upper()
+                queue.record(key, final_status,
+                             outcome.get("reason", "Submission receipt was not confirmed."))
+                if final_status == "SUBMITTED":
+                    data = queue.read()
+                    data["jobs"][key]["submitted_at"] = datetime.now(timezone.utc).isoformat()
+                    from job_agent.json_store import write_json_atomic
+                    write_json_atomic(queue.path, data)
+            except Exception as exc:
+                if session is not None and not getattr(session, "_closed", False):
+                    try:
+                        session.cancel()
+                    except Exception:
+                        pass
+                try:
+                    queue.record(key, "FAILED", f"Application processing failed: {type(exc).__name__}")
+                except KeyError:
+                    pass
+
+    scheduler = DiscoveryScheduler(data_dir / "autonomous_schedule.json", policy_path,
+                                   scheduled_discovery)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        scheduler.start()
+        try:
+            yield
+        finally:
+            scheduler.stop()
+
+    app = FastAPI(title="job-agent dashboard", docs_url=None, redoc_url=None,
+                  lifespan=lifespan)
     # The Chrome extension calls this app cross-origin; nothing else may.
     from fastapi.middleware.cors import CORSMiddleware
 
@@ -227,6 +358,51 @@ def create_app(*, data_dir: Path = Path("data"),
     @app.get("/api/dashboard/summary")
     def dashboard_summary() -> dict:
         return service.dashboard_summary(data_dir / "applications.json")
+
+    @app.get("/api/autonomous")
+    def autonomous_status() -> dict:
+        from datetime import datetime, timezone
+        policy = load_policy(policy_path)
+        schedule = read_json(data_dir / "autonomous_schedule.json", {})
+        items = list(queue.read().get("jobs", {}).values())
+        records = []
+        try:
+            from job_agent.apply.tracker import load_applications
+            records = [r.model_dump(mode="json") for r in load_applications(data_dir / "applications.json")]
+        except Exception:
+            pass
+        today = datetime.now().astimezone().date().isoformat()
+        def _local_day(value: str) -> str:
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone().date().isoformat()
+            except (AttributeError, ValueError):
+                return str(value or "")[:10]
+        return {"policy": policy.model_dump(mode="json"),
+                "last_discovery": datetime.fromtimestamp(schedule["last_run"], timezone.utc).isoformat()
+                    if schedule.get("last_run") else None,
+                "next_discovery": datetime.fromtimestamp(schedule["next_run"], timezone.utc).isoformat()
+                    if schedule.get("next_run") else None,
+                "discovered": len(items),
+                "eligible": sum(i.get("decision", i.get("status")) == "ELIGIBLE" for i in items),
+                "paused": sum(i.get("status") in {"REVIEW", "PAUSED", "DAILY_LIMIT"} for i in items),
+                "failed": sum(i.get("status") == "FAILED" for i in items),
+                "submitted": sum(r.get("status") in {"submitted", "applied"} for r in records),
+                "daily_count": sum(r.get("status") in {"submitted", "applied", "under_review", "assessment", "interviewing", "offer"} and
+                    _local_day(r.get("applied_at", "")) == today for r in records),
+                "activity": sorted(items, key=lambda x: x.get("created_at", ""), reverse=True)[:20]}
+
+    @app.put("/api/autonomous")
+    def update_autonomous(req: AutonomousRequest) -> dict:
+        if req.enabled and not req.authorize:
+            raise HTTPException(409, "Explicit standing authorization is required to enable automatic applications")
+        policy = AutonomousPolicy(**req.model_dump(exclude={"authorize", "enabled"}))
+        policy = authorization_update(policy, enabled=req.enabled)
+        save_policy(policy_path, policy)
+        if req.enabled:
+            scheduler.start()
+        else:
+            scheduler.stop()
+        return {"policy": policy.model_dump(mode="json")}
 
     @app.get("/api/jobs")
     def jobs() -> dict:
