@@ -12,6 +12,7 @@ For back-compat, a bare invocation with no subcommand defaults to `search`
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import tempfile
@@ -23,6 +24,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from job_agent import search
+from job_agent.audit import AuditCollector, ReadOnlySeenCache, build_report, is_internship_or_entry_level
 from job_agent.config import load_profile, load_settings
 from job_agent.demo_data import DemoSource, demo_profile, score_demo
 from job_agent.models import Job, ScoredJob
@@ -160,6 +162,9 @@ def _split_applied(scored: list[ScoredJob], markers: dict) -> tuple[list[ScoredJ
 
 
 def cmd_search(console: Console, args: argparse.Namespace) -> int:
+    if getattr(args, "audit", False) and getattr(args, "demo", False):
+        console.print("[red]--audit requires your saved profile; --demo uses mock data and is not allowed.[/red]")
+        return 2
     # --days is the primary recency knob (default 30); --max-age-hours, when
     # given explicitly, overrides it for sub-day windows.
     hours = args.max_age_hours if args.max_age_hours is not None else args.days * 24
@@ -185,6 +190,8 @@ def cmd_search(console: Console, args: argparse.Namespace) -> int:
     except (FileNotFoundError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         return 2
+    if getattr(args, "audit", False):
+        return _cmd_search_audit(console, args, settings, profile, window)
     console.print(f"[bold cyan]job-agent search[/bold cyan] — scoring with {settings.model}\n")
     outcome = search.run(profile, seen_cache=SeenCache(settings.data_dir / "seen.json"),
                          fresh_window=window)
@@ -239,6 +246,53 @@ def cmd_search(console: Console, args: argparse.Namespace) -> int:
                       f"{'…' if len(hidden) > 5 else ''}) — use --include-applied "
                       f"to show them.[/dim]")
     console.print(f"[dim]Saved {len(scored)} job(s) to {saved} (use `tailor --job <ID>`).[/dim]")
+    return 0
+
+
+def _cmd_search_audit(console: Console, args: argparse.Namespace, settings,
+                      profile, window: timedelta) -> int:
+    """Run live discovery and matching without writing any user data."""
+    facts_path = settings.data_dir / "career_facts.yaml"
+    if not facts_path.exists():
+        console.print(f"[red]Career profile not found: {facts_path}[/red]")
+        return 2
+    try:
+        candidate = load_career_facts(facts_path)
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]Invalid master profile: {exc}[/red]")
+        return 2
+
+    authorization = dict(candidate.work_authorization) if candidate.work_authorization else None
+    answer_path = settings.data_dir / "answer_bank.yaml"
+    if answer_path.exists():
+        try:
+            from job_agent.apply.answer_bank import load_answer_bank
+            bank = load_answer_bank(answer_path)
+            authorization = {
+                **(authorization or {}),
+                "authorized_countries": bank.authorized_countries,
+                "authorized_us": bank.authorized_us,
+                "requires_sponsorship": bank.requires_sponsorship,
+            }
+        except (FileNotFoundError, ValueError) as exc:
+            console.print(f"[yellow]Authorization details need review: {exc}[/yellow]")
+
+    collector = AuditCollector()
+    outcome = search.run(
+        profile, seen_cache=ReadOnlySeenCache(settings.data_dir / "seen.json"),
+        fresh_window=window, audit=collector,
+    )
+    candidates = [job for job in outcome.jobs
+                  if is_internship_or_entry_level(job.title)
+                  and job.verification is not None
+                  and job.verification.status == "verified"]
+    scored = score_jobs(candidates, settings, profile, method=args.method,
+                        candidate=candidate, authorization=authorization) if candidates else []
+    report = build_report(outcome, collector, scored)
+    report["warnings"] = outcome.warnings
+    console.print("[bold cyan]Read-only discovery audit[/bold cyan]")
+    console.print_json(json.dumps(report, ensure_ascii=False, indent=2))
+    console.print("[dim]No seen cache, search snapshot, profile, application history, or automation settings were written.[/dim]")
     return 0
 
 
@@ -739,6 +793,8 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("--method", choices=["structured", "tool"], default="structured")
     s.add_argument("--include-applied", action="store_true",
                    help="Also show jobs you already applied to (hidden by default).")
+    s.add_argument("--audit", action="store_true",
+                   help="Read-only live discovery audit; reports stages without saving results.")
 
     t = sub.add_parser("tailor", help="Tailor your resume to a searched job.")
     t.add_argument("--demo", action="store_true", help="Fake resume + JD end-to-end (no key).")

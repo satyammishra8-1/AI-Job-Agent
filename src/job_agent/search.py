@@ -9,6 +9,7 @@ pruned — no silent truncation.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from contextlib import nullcontext
 
 from pydantic import BaseModel, ConfigDict
 
@@ -20,6 +21,7 @@ from job_agent.seen_cache import SeenCache
 from job_agent.seniority import LEVEL_NAMES, seniority_rank
 from job_agent.sources import JobSource, build_source
 from job_agent.verification import verify_job
+from job_agent.http import audit_request_scope
 
 # The product's default search window is 30 days (CLI, dashboard, and README).
 FRESH_WINDOW = timedelta(days=30)
@@ -163,6 +165,7 @@ def run(
     now: datetime | None = None,
     fresh_window: timedelta = FRESH_WINDOW,
     source_factory=build_source,
+    audit=None,
 ) -> SearchOutcome:
     """Execute the pipeline for a profile and return survivors + stage counts."""
     now = now or datetime.now(timezone.utc)
@@ -184,9 +187,13 @@ def run(
             continue
         sources[label] = source
         try:
-            fetched = source.fetch()
+            scope = audit_request_scope(audit, label, "fetch") if audit else nullcontext()
+            with scope:
+                fetched = source.fetch()
         except Exception as exc:  # SourceError or unexpected — one board must never break the run
             warnings.append(f"{label}: fetch failed ({type(exc).__name__}: {exc})")
+            if audit:
+                audit.source_failure(label, str(exc))
             per_source[label] = 0
             continue
         per_source[label] = len(fetched)
@@ -195,19 +202,33 @@ def run(
     # Stage 1: keyword pre-filter (cheap, biggest reduction).
     kept = [(j, lbl) for (j, lbl) in all_jobs if matches_keywords(j.title, profile.keywords)]
     after_keyword = len(kept)
+    if audit:
+        audit.stage("fetched", len(all_jobs))
+        audit.stage("after_pagination", len(all_jobs))
+        audit.stage("after_keyword", after_keyword)
+        audit.reject("keyword", len(all_jobs) - after_keyword)
 
     # Stage 2: freshness (default 30 days; caller-supplied windows are preserved).
     kept = [(j, lbl) for (j, lbl) in kept if is_fresh(j, now, seen_cache, fresh_window)]
     after_fresh = len(kept)
+    if audit:
+        audit.stage("after_fresh", after_fresh)
+        audit.reject("freshness", after_keyword - after_fresh)
     seen_cache.save()
 
     # Stage 3: location rule.
     kept = [(j, lbl) for (j, lbl) in kept if passes_location(j, profile)]
     after_location = len(kept)
+    if audit:
+        audit.stage("after_location", after_location)
+        audit.reject("location", after_fresh - after_location)
 
     # Stage 4: seniority ceiling (title-only, so it runs before enrichment).
     kept = [(j, lbl) for (j, lbl) in kept if passes_seniority(j, profile)]
     after_seniority = len(kept)
+    if audit:
+        audit.stage("after_seniority", after_seniority)
+        audit.reject("seniority", after_location - after_seniority)
 
     # Stage 5: dedup (first occurrence wins).
     seen_keys: set[str] = set()
@@ -218,6 +239,9 @@ def run(
             seen_keys.add(key)
             deduped.append((job, lbl))
     after_dedup = len(deduped)
+    if audit:
+        audit.stage("after_dedup", after_dedup)
+        audit.reject("deduplication", after_seniority - after_dedup)
 
     # Enrich only the final survivors (e.g. SmartRecruiters detail fetch), so the
     # experience filter below sees every source's full JD.
@@ -225,9 +249,13 @@ def run(
     for job, lbl in deduped:
         board = lbl.split("/", 1)[1] if "/" in lbl else lbl
         try:
-            enriched_pairs.append((sources[lbl].enrich(job), board))
+            scope = audit_request_scope(audit, lbl, "enrich") if audit else nullcontext()
+            with scope:
+                enriched_pairs.append((sources[lbl].enrich(job), board))
         except Exception as exc:  # enrichment is best-effort
             warnings.append(f"{lbl}: enrich failed for {job.id} ({exc})")
+            if audit:
+                audit.source_failure(lbl, str(exc))
             enriched_pairs.append((job, board))
 
     # Verification uses the normalized source provenance and enriched posting
@@ -237,10 +265,15 @@ def run(
         (job.model_copy(update={"verification": verify_job(job)}), board)
         for job, board in enriched_pairs
     ]
+    after_verification = len(enriched_pairs)
 
     # Stage 6: experience gap (needs the full JD, hence after enrichment).
     enriched_pairs = [(j, b) for (j, b) in enriched_pairs if passes_experience(j, profile)]
     after_experience = len(enriched_pairs)
+    if audit:
+        audit.stage("after_verification", after_verification)
+        audit.stage("after_experience", after_experience)
+        audit.reject("experience", after_verification - after_experience)
     jobs = [j for j, _ in enriched_pairs]
     boards = [b for _, b in enriched_pairs]
 
