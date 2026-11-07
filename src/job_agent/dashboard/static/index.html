@@ -402,6 +402,67 @@
   .detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; margin-top:18px; }
   .detail-block { padding-top:14px; border-top:1px solid var(--border-soft); }
   .detail-block h4 { margin-bottom:7px; font-size:12px; }
+  .advanced-filters { margin:-3px 0 13px; color:var(--muted); font-size:11px; }
+  .advanced-filters summary { width:max-content; cursor:pointer; padding:3px 0 8px; color:var(--accent); font-weight:650; }
+  .advanced-filters .toolbar { margin-bottom:0; box-shadow:none; }
+  .skeleton-stack { display:grid; gap:11px; }
+  .skeleton-card { height:108px; border:1px solid var(--border); border-radius:13px; background:linear-gradient(90deg,#fff 25%,#f7f8fb 50%,#fff 75%); background-size:200% 100%; animation:skeleton-sweep 1.8s ease-in-out infinite; }
+  @keyframes skeleton-sweep { to { background-position:-200% 0; } }
+  /* Final polish for agent overview, preferences, and responsive navigation. */
+  :root { --radius:14px; --green:#16845d; --surface:#f8f9fc; }
+  input:not([type="checkbox"]):not([type="radio"]),select,textarea { font:inherit; color:var(--ink); }
+  .agent-summary { margin-top:17px; padding:20px 22px; }
+  .agent-summary-top { display:flex; align-items:center; justify-content:space-between; gap:18px; }
+  .agent-summary-top h2 { margin:3px 0 0; font-size:20px; }
+  .agent-kicker { color:var(--accent); font-size:10px; font-weight:800; letter-spacing:.11em; }
+  .agent-summary-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .agent-state { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border:1px solid var(--border); border-radius:99px; color:var(--muted); font-size:11px; font-weight:700; white-space:nowrap; }
+  .agent-state i { width:7px; height:7px; border-radius:50%; background:#9aa4b2; }
+  .agent-state.is-on { color:#08764f; border-color:#c8eadb; background:#f1fbf6; }
+  .agent-state.is-on i { background:#19a57a; box-shadow:0 0 0 3px #e1f5eb; }
+  .agent-state.is-off i { background:#9aa4b2; }
+  #autonomous-stats { grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:17px; }
+  #autonomous-stats .card { padding:11px 13px; border-radius:10px; box-shadow:none; }
+  #autonomous-stats small { display:block; color:var(--muted); font-size:10px; }
+  #autonomous-stats b { display:block; margin-top:3px; overflow-wrap:anywhere; font-size:14px; }
+  .agent-activity { margin-top:14px; padding-top:12px; border-top:1px solid var(--border-soft); }
+  .agent-activity > b { font-size:11px; }
+  .agent-activity ul { display:grid; gap:5px; margin:7px 0 0; padding:0; list-style:none; }
+  .agent-activity li { position:relative; padding-left:15px; color:var(--muted); font-size:11px; }
+  .agent-activity li:before { content:""; position:absolute; left:2px; top:7px; width:5px; height:5px; border-radius:50%; background:var(--accent); }
+  .settings-card { padding:24px; }
+  .settings-card .section-heading { align-items:center; margin:0 0 19px; }
+  .settings-card h3 { font-size:16px; }
+  .settings-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  .settings-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .settings-controls label { display:grid; gap:6px; color:var(--muted); font-size:11px; font-weight:650; }
+  .settings-controls input { width:100%; min-width:0; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  .settings-section { margin-top:24px; padding-top:20px; border-top:1px solid var(--border-soft); }
+  .settings-section h4 { margin-bottom:12px; font-size:13px; }
+  .authorization-label { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px; border:1px solid var(--border); border-radius:11px; background:var(--surface); }
+  .authorization-label input { flex:none; margin-top:3px; accent-color:var(--accent); }
+  .authorization-label b,.authorization-label small { display:block; }
+  .authorization-label b { font-size:12px; }
+  .authorization-label small { margin-top:3px; color:var(--muted); font-size:11px; line-height:1.5; }
+  .settings-actions { display:flex; align-items:center; gap:12px; margin-top:15px; }
+  .settings-actions .inline-out { min-height:18px; }
+  #sec-settings { max-width:1000px; margin:0 auto; }
+  #sec-settings .profile-page-header { padding-top:0; }
+  .empty-state-note { max-width:440px; margin:0 auto; color:var(--muted); }
+  @media (max-width:850px) {
+    #autonomous-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .agent-summary-top { align-items:flex-start; flex-direction:column; }
+    .agent-summary-actions { width:100%; }
+  }
+  @media (max-width:600px) {
+    .agent-summary { padding:16px; }
+    .agent-summary-top h2 { font-size:17px; }
+    .agent-summary-actions { gap:8px; }
+    .settings-card { padding:16px; }
+    .settings-controls,.settings-grid { grid-template-columns:1fr; }
+    .settings-card .section-heading { align-items:flex-start; flex-direction:column; }
+  }
+  @media (prefers-reduced-motion:reduce) { .skeleton-card { animation:none; } }
   :focus-visible { outline:3px solid #a5a6f1; outline-offset:2px; }
   @media (max-width:850px) {
     body { padding:0 18px 88px; } .sidebar { display:none; }
@@ -445,9 +506,10 @@
   <nav class="side-nav" aria-label="Main navigation">
     <a href="#today" data-page-link="today"><span class="nav-icon" aria-hidden="true">◷</span>Today</a>
     <a href="#profile" data-page-link="profile"><span class="nav-icon" aria-hidden="true">◎</span>My Profile</a>
-    <a href="#opportunities" data-page-link="opportunities"><span class="nav-icon" aria-hidden="true">⌕</span>Opportunities</a>
+    <a href="#opportunities" data-page-link="opportunities"><span class="nav-icon" aria-hidden="true">⌕</span>Discover Jobs</a>
     <a href="#applications" data-page-link="applications"><span class="nav-icon" aria-hidden="true">▤</span>Applications</a>
-    <a href="#insights" data-page-link="insights"><span class="nav-icon" aria-hidden="true">↗</span>Insights</a>
+    <a href="#insights" data-page-link="insights"><span class="nav-icon" aria-hidden="true">↗</span>Career Insights</a>
+    <a href="#settings" data-page-link="settings"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</a>
   </nav>
   <div class="sidebar-foot">Private workspace · Stored on this computer</div>
 </aside>
@@ -455,9 +517,10 @@
 <nav class="mobile-nav" aria-label="Mobile navigation">
   <a href="#today" data-page-link="today"><span class="nav-icon" aria-hidden="true">◷</span>Today</a>
   <a href="#profile" data-page-link="profile"><span class="nav-icon" aria-hidden="true">◎</span>Profile</a>
-  <a href="#opportunities" data-page-link="opportunities"><span class="nav-icon" aria-hidden="true">⌕</span>Jobs</a>
+  <a href="#opportunities" data-page-link="opportunities"><span class="nav-icon" aria-hidden="true">⌕</span>Discover</a>
   <a href="#applications" data-page-link="applications"><span class="nav-icon" aria-hidden="true">▤</span>Apps</a>
   <a href="#insights" data-page-link="insights"><span class="nav-icon" aria-hidden="true">↗</span>Insights</a>
+  <a href="#settings" data-page-link="settings"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</a>
 </nav>
 <main id="app-main">
 
@@ -474,31 +537,15 @@
     </div>
   </div>
   <div class="today-grid" id="today-summary" aria-live="polite"></div>
-  <div class="card" id="autonomous-panel" style="margin-top:18px">
-    <div class="section-heading"><div><h2>Autonomous applications</h2>
-      <div class="sec-sub">Scheduled discovery and policy-based eligibility. Live forms that need login, CAPTCHA, legal answers, or unsupported controls pause for you.</div></div>
-      <button class="primary" id="autonomous-toggle" type="button">Loading…</button></div>
+  <div class="card agent-summary" id="autonomous-panel">
+    <div class="agent-summary-top"><div><div class="agent-kicker">YOUR AI CAREER AGENT</div>
+      <h2 id="agent-headline">Your AI agent is ready to work for your career.</h2>
+      <div class="sec-sub">It finds genuine opportunities, checks fit, and prepares supported applications using your profile.</div></div>
+      <div class="agent-summary-actions"><span id="agent-live-state" class="agent-state is-off"><i></i> Agent is off</span>
+        <button class="primary" id="autonomous-toggle" type="button">Loading…</button>
+        <a class="text-button" href="#settings">Configure</a></div></div>
     <div id="autonomous-stats" class="today-grid" aria-live="polite"></div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0">
-      <label>Daily application limit <input id="auto-limit" type="number" min="1" max="100" value="5"></label>
-      <label>Minimum match <input id="auto-score" type="number" min="0" max="100" value="70"></label>
-      <label>Discovery interval (minutes) <input id="auto-interval" type="number" min="30" max="10080" value="360"></label>
-    </div>
-    <details style="margin:12px 0"><summary>Eligibility filters</summary>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:12px">
-        <label>Allowed locations <input id="auto-locations" placeholder="Use profile preferences"></label>
-        <label>Work modes <input id="auto-modes" placeholder="remote, hybrid, onsite"></label>
-        <label>Internship durations <input id="auto-durations" placeholder="Use profile preference"></label>
-        <label>Graduation years <input id="auto-graduation" placeholder="e.g. 2027, 2028"></label>
-        <label>Academic years <input id="auto-years" placeholder="e.g. 3rd year, final year"></label>
-        <label>Degree branches <input id="auto-branches" placeholder="Use profile education"></label>
-        <label>Target roles <input id="auto-roles" placeholder="Use profile target roles"></label>
-        <label>Minimum stipend <input id="auto-stipend" type="number" min="0" placeholder="No minimum"></label>
-      </div>
-    </details>
-    <label style="display:flex;gap:8px;align-items:flex-start"><input id="auto-authorize" type="checkbox">
-      I authorize the agent to use these saved rules as standing authorization for automatic applications. I understand missing personal or legal answers, login, CAPTCHA, and unsupported forms will pause an application.</label>
-    <div id="autonomous-activity" style="margin-top:12px"></div>
+    <div class="agent-activity" id="autonomous-activity" aria-live="polite"></div>
   </div>
 </section>
 
@@ -508,23 +555,22 @@
 </section>
 
 <section id="sec-jobs" data-page="opportunities">
-  <div class="section-heading"><div><h2>Opportunities</h2>
+  <div class="section-heading"><div><h2>Discover jobs</h2>
     <div class="sec-sub" id="gen-at">Verification status first, then fit score. Lower-scoring and review-needed roles remain visible.</div></div></div>
   <div class="toolbar">
     <label>Match <select id="jf-fit"><option value="">all</option><option value="strong">Strong match</option><option value="good">Good match</option><option value="review">Review</option></select></label>
     <label>Genuine <select id="jf-verification"><option value="">all</option><option value="verified">Verified</option><option value="needs_review">Needs review</option><option value="suspicious">Suspicious</option></select></label>
     <label>Focus <select id="jf-focus"><option value="">all roles</option><option value="internship">Internship</option><option value="remote">Remote</option><option value="bengaluru">Bengaluru</option><option value="ai">AI / ML</option><option value="sde">SDE</option></select></label>
-    <span style="flex:1"></span>
+  </div>
+  <details class="advanced-filters"><summary>More filters and sorting</summary><div class="toolbar">
     <label>Status <select id="jf-status"><option value="">all</option></select></label>
     <label>Source <select id="jf-source"><option value="">all</option></select></label>
-    <label>Min score <input id="jf-score" type="number" min="0" max="100" placeholder="0"></label>
-    <label>Sort <select id="jf-sort">
-      <option value="recommended">recommended</option><option value="match">match score</option><option value="newest">newest first</option><option value="verification">verification</option>
-    </select></label>
-    <label><input type="checkbox" id="jf-hide-applied" checked> Hide jobs I've applied to</label>
-  </div>
+    <label>Minimum score <input id="jf-score" type="number" min="0" max="100" placeholder="0"></label>
+    <label>Sort <select id="jf-sort"><option value="recommended">recommended</option><option value="match">match score</option><option value="newest">newest first</option><option value="verification">verification</option></select></label>
+    <label><input type="checkbox" id="jf-hide-applied" checked> Hide applied</label>
+  </div></details>
   <div class="card" id="searchlog"></div>
-  <div id="jobs-table"></div>
+  <div id="jobs-table" aria-live="polite"><div class="skeleton-stack" aria-label="Loading opportunities"><i class="skeleton-card"></i><i class="skeleton-card"></i><i class="skeleton-card"></i></div></div>
 
   <div class="card panel hidden" id="resume-panel">
     <div class="head"><b>Resume</b><span class="meta" id="resume-meta"></span>
@@ -535,7 +581,7 @@
   <div class="card panel hidden" id="preview"></div>
 </section>
 
-<!-- ── Applications (history — collapsible) ─────────────────────────────── -->
+<!-- Applications (history — collapsible) -->
 <section id="sec-apps" data-page="applications">
   <div class="h2-row">
     <div><h2>Applications</h2><div class="sec-sub">Your application pipeline and next steps.</div></div>
@@ -551,11 +597,11 @@
         <option value="status">status</option>
       </select></label>
     </div>
-    <div class="card tablewrap"><div id="apps-table"></div></div>
+    <div class="card tablewrap"><div id="apps-table" aria-live="polite"><div class="skeleton-stack" aria-label="Loading applications"><i class="skeleton-card"></i><i class="skeleton-card"></i></div></div></div>
   </div>
 </section>
 
-<!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
+<!-- Pipeline -->
 <section id="sec-profile" data-page="profile">
   <div class="profile-page-header"><div><div class="eyebrow">PERSONAL CAREER WORKSPACE</div><h2>My Career Profile</h2><p>Your profile powers personalized job discovery, matching, applications, and career insights.</p></div><div class="profile-header-actions"><span id="profile-completeness-head" class="profile-strength-badge">Incomplete</span><button class="primary" data-profile-section="overview">Improve Profile</button></div></div>
   <div class="profile-onboarding" id="profile-onboarding" aria-live="polite"></div>
@@ -567,6 +613,7 @@
   <section class="profile-section-block"><div class="profile-section-title"><div><h3>How your AI Career Agent sees you</h3><p>Transparent analysis based only on the evidence in your profile.</p></div></div><div id="profile-intelligence" class="intelligence-grid"></div><div id="profile-next-step" class="profile-next-step"></div></section>
   <section class="profile-section-block profile-editor-section"><div class="profile-section-title"><div><h3>Edit your profile</h3><p>Choose one section. Unknown details can stay blank.</p></div><button class="primary" id="profile-editor-toggle" aria-expanded="false">Open profile editor</button></div>
     <div class="profile-editor-shell" id="profile-editor" hidden><nav class="profile-editor-nav" id="profile-editor-nav" aria-label="Profile editor sections"></nav><div class="profile-editor-content"><div id="profile-editor-panel"></div><div class="profile-editor-actions"><button type="button" class="ghost" id="profile-cancel">Cancel</button><button type="button" class="primary" id="profile-save">Save Changes</button><span id="profile-status" aria-live="polite"></span></div></div></div>
+  </section>
 </section>
 
 <section id="sec-pipeline" data-page="profile">
@@ -580,6 +627,30 @@
 <section id="sec-insights" data-page="insights">
   <div class="section-heading"><div><h2>Career insights</h2><div class="sec-sub">Patterns from your actual profile and latest opportunities.</div></div></div>
   <div class="insights-grid" id="insights-content"></div>
+</section>
+
+<section id="sec-settings" data-page="settings">
+  <div class="profile-page-header"><div><div class="eyebrow">AGENT PREFERENCES</div><h2>Settings</h2><p>Set automation limits and eligibility preferences. Your profile remains the source for personal facts.</p></div></div>
+  <div class="card settings-card">
+    <div class="section-heading"><div><h3>Autonomous applications</h3><div class="sec-sub">Automation is off until you explicitly authorize it. The agent pauses when a form requires personal or legal input.</div></div><span id="settings-agent-state" class="agent-state is-off"><i></i> Agent is off</span></div>
+    <div class="settings-controls">
+      <label>Daily application limit <input id="auto-limit" type="number" min="1" max="100" value="5"></label>
+      <label>Minimum match <input id="auto-score" type="number" min="0" max="100" value="70"></label>
+      <label>Discovery interval (minutes) <input id="auto-interval" type="number" min="30" max="10080" value="360"></label>
+    </div>
+    <div class="settings-section"><h4>Eligibility preferences</h4><div class="settings-controls settings-grid">
+      <label>Allowed locations <input id="auto-locations" placeholder="Use profile preferences"></label>
+      <label>Work modes <input id="auto-modes" placeholder="remote, hybrid, onsite"></label>
+      <label>Internship durations <input id="auto-durations" placeholder="Use profile preference"></label>
+      <label>Graduation years <input id="auto-graduation" placeholder="e.g. 2027, 2028"></label>
+      <label>Academic years <input id="auto-years" placeholder="e.g. 3rd year, final year"></label>
+      <label>Degree branches <input id="auto-branches" placeholder="Use profile education"></label>
+      <label>Target roles <input id="auto-roles" placeholder="Use profile target roles"></label>
+      <label>Minimum stipend <input id="auto-stipend" type="number" min="0" placeholder="No minimum"></label>
+    </div></div>
+    <label class="authorization-label"><input id="auto-authorize" type="checkbox"><span><b>Standing authorization</b><small>I authorize automatic applications under these saved rules. Login, CAPTCHA, unsupported forms, and personal or legal questions will pause an application for me.</small></span></label>
+    <div class="settings-actions"><button class="primary" id="autonomous-save" type="button">Save settings</button><span id="autonomous-save-status" class="inline-out" aria-live="polite"></span></div>
+  </div>
 </section>
 </main>
 
@@ -639,7 +710,7 @@ let PROFILE_EDITOR_SECTION = "overview";
 const LABELS = {
   submitted: "Submitted", paused: "Needs your input", failed: "Needs attention",
   saved: "Saved", ready_to_apply: "Ready to apply", applied: "Applied",
-  under_review: "Under review", assessment: "Assessment", interviewing: "Interview",
+  under_review: "Shortlisted", assessment: "Assessment", interviewing: "Interview",
   offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn",
   strong: "Strong match", possible: "Possible match", skip: "Not a fit",
   unscored: "Not scored", verified: "Verified", needs_review: "Needs review",
@@ -697,8 +768,9 @@ function toast(msg) {
 }
 
 /* ── Applications ─────────────────────────────────────────────────────── */
-const APP_TABS = [["", "All"], ["ready_to_apply", "Ready"], ["applied", "Applied"],
-  ["under_review", "Under review"], ["assessment", "Assessment"], ["interviewing", "Interview"],
+const APP_TABS = [["", "All"], ["submitted", "Submitted"], ["ready_to_apply", "Ready"], ["applied", "Applied"],
+  ["under_review", "Shortlisted"], ["assessment", "Assessment"], ["interviewing", "Interview"],
+  ["paused", "Paused"], ["failed", "Failed"],
   ["offer", "Offer"], ["rejected", "Rejected"]];
 
 function renderApplicationTabs() {
@@ -990,6 +1062,8 @@ function renderJobs() {
       '<div class="job-company">' + esc(j.company) + appliedPill + newPill + '</div>' +
       '<div class="job-meta"><span>' + esc(location) + '</span>' +
       (modality ? '<span><i class="meta-dot"></i>' + modality + '</span>' : '') +
+      ((j.internship_duration || j.duration) ? '<span><i class="meta-dot"></i>' + esc(j.internship_duration || j.duration) + '</span>' : '') +
+      (j.stipend !== null && j.stipend !== undefined && j.stipend !== "" ? '<span><i class="meta-dot"></i>Stipend ' + esc(j.stipend) + '</span>' : '') +
       '<span><i class="meta-dot"></i>' + esc(j.source || "Source unavailable") + '</span>' +
       (posted ? '<span><i class="meta-dot"></i>' + esc(posted) + '</span>' : '') + '</div>' +
       '<div class="match-copy"><b>' + esc(strength) + '</b>' + pill(verdict) +
@@ -1310,8 +1384,8 @@ function renderInsights() {
 
 function pageFromHash() {
   const value = location.hash.replace(/^#/, "");
-  const aliases = {"sec-today":"today", "sec-recommendation":"today", "sec-jobs":"opportunities", "sec-apps":"applications", "sec-profile":"profile", "sec-pipeline":"profile"};
-  return aliases[value] || (["today","profile","opportunities","applications","insights"].includes(value) ? value : "today");
+  const aliases = {"sec-today":"today", "sec-recommendation":"today", "sec-jobs":"opportunities", "sec-apps":"applications", "sec-profile":"profile", "sec-pipeline":"profile", "sec-insights":"insights", "sec-settings":"settings"};
+  return aliases[value] || (["today","profile","opportunities","applications","insights","settings"].includes(value) ? value : "today");
 }
 
 function showPage(page = pageFromHash()) {
@@ -1364,28 +1438,33 @@ async function loadAutonomous() {
   $("#auto-branches").value = (p.branches || []).join(", ");
   $("#auto-roles").value = (p.target_roles || []).join(", ");
   $("#auto-stipend").value = p.minimum_stipend ?? "";
+  $("#auto-authorize").checked = Boolean(p.enabled && p.authorized_at);
   $("#autonomous-toggle").textContent = p.enabled ? "Pause agent" : "Enable agent";
   $("#autonomous-toggle").classList.toggle("primary", !p.enabled);
+  for (const id of ["#agent-live-state", "#settings-agent-state"]) {
+    const el = $(id);
+    el.classList.toggle("is-on", Boolean(p.enabled));
+    el.classList.toggle("is-off", !p.enabled);
+    el.innerHTML = `<i></i> Agent is ${p.enabled ? "running" : "off"}`;
+  }
+  $("#agent-headline").textContent = p.enabled
+    ? "Your AI agent is working for your career."
+    : "Your AI agent is ready to work for your career.";
   $("#autonomous-stats").innerHTML = [
-    ["Agent", p.enabled ? "ON" : "OFF"], ["Last discovery", data.last_discovery || "Not run"],
-    ["Next discovery", data.next_discovery || "—"], ["Discovered", data.discovered],
-    ["Eligible", data.eligible], ["Submitted", data.submitted], ["Paused", data.paused],
-    ["Failed", data.failed], ["Today", `${data.daily_count} / ${p.max_applications_per_day || 5}`]
+    ["Last discovery", data.last_discovery ? new Date(data.last_discovery).toLocaleString() : "Not yet"],
+    ["Next discovery", p.enabled && data.next_discovery ? new Date(data.next_discovery).toLocaleString() : "Paused"],
+    ["Opportunities", data.discovered ?? 0], ["Eligible", data.eligible ?? 0],
+    ["Submitted today", `${data.daily_count ?? 0} / ${p.max_applications_per_day || 5}`],
+    ["Need attention", (data.paused ?? 0) + (data.failed ?? 0)]
   ].map(([k,v]) => `<div class="card"><small>${esc(k)}</small><b>${esc(String(v))}</b></div>`).join("");
   const activity = data.activity || [];
   $("#autonomous-activity").innerHTML = activity.length
-    ? `<b>Recent activity</b><ul>${activity.slice(0,8).map(x => `<li>${esc(x.company)} — ${esc(x.title)}: ${esc(x.status)}${x.reasons?.length ? ` · ${esc(x.reasons[0])}` : ""}</li>`).join("")}</ul>`
-    : `<div class="sec-sub">No autonomous discovery activity yet.</div>`;
+    ? `<b>Recent agent activity</b><ul>${activity.slice(0,5).map(x => `<li>${esc(x.company)} — ${esc(x.title)}: ${esc(x.status)}${x.reasons?.length ? ` · ${esc(x.reasons[0])}` : ""}</li>`).join("")}</ul>`
+    : `<div class="sec-sub">Activity will appear here after your agent completes its first discovery.</div>`;
 }
 
-async function toggleAutonomous() {
-  const current = await api("/api/autonomous");
-  const enabled = !current.policy.enabled;
-  if (enabled && !$("#auto-authorize").checked) {
-    toast("Check the standing authorization box before enabling automatic applications.");
-    return;
-  }
-  const body = {...current.policy, enabled, authorize: enabled,
+function autonomousSettingsBody(policy, enabled) {
+  return {...policy, enabled, authorize: enabled && $("#auto-authorize").checked,
     max_applications_per_day:Number($("#auto-limit").value) || 5,
     min_match_score:Number($("#auto-score").value) || 0,
     interval_minutes:Number($("#auto-interval").value) || 360,
@@ -1397,10 +1476,29 @@ async function toggleAutonomous() {
     branches:$("#auto-branches").value.split(",").map(x=>x.trim()).filter(Boolean),
     target_roles:$("#auto-roles").value.split(",").map(x=>x.trim()).filter(Boolean),
     minimum_stipend:$("#auto-stipend").value ? Number($("#auto-stipend").value) : null};
+}
+
+async function saveAutonomous(enabled, statusEl = null) {
+  const current = await api("/api/autonomous");
+  if (enabled && !$("#auto-authorize").checked) {
+    toast("Check the standing authorization box before enabling automatic applications.");
+    return;
+  }
   try {
-    await put("/api/autonomous", body);
+    await put("/api/autonomous", autonomousSettingsBody(current.policy, enabled));
     await loadAutonomous();
-    toast(enabled ? "Autonomous discovery enabled." : "Autonomous applications paused.");
+    if (statusEl) statusEl.textContent = "Settings saved.";
+    else toast(enabled ? "Autonomous discovery enabled." : "Autonomous applications paused.");
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "Could not save: " + e.message;
+    else toast("Could not update autonomous mode: " + e.message);
+  }
+}
+
+async function toggleAutonomous() {
+  try {
+    const current = await api("/api/autonomous");
+    await saveAutonomous(!current.policy.enabled);
   } catch (e) { toast("Could not update autonomous mode: " + e.message); }
 }
 
@@ -1820,6 +1918,15 @@ $("#jf-score").addEventListener("input", renderJobs);
 $("#jf-hide-applied").addEventListener("change", renderJobs);
 $("#btn-search").addEventListener("click", runSearch);
 $("#autonomous-toggle").addEventListener("click", toggleAutonomous);
+$("#autonomous-save").addEventListener("click", async () => {
+  const status = $("#autonomous-save-status");
+  status.textContent = "Saving…";
+  try {
+    const current = await api("/api/autonomous");
+    const enabled = Boolean(current.policy.enabled && $("#auto-authorize").checked);
+    await saveAutonomous(enabled, status);
+  } catch (e) { status.textContent = "Could not save: " + e.message; }
+});
 $("#profile-save").addEventListener("click", saveProfile);
 $("#profile-editor-toggle").addEventListener("click", () => {
   if ($("#profile-editor").hidden) openProfileEditor(PROFILE_EDITOR_SECTION);
@@ -1840,6 +1947,9 @@ loadApps().catch((e) => $("#apps-table").innerHTML = `<div class="err empty">${e
 loadJobs().catch((e) => $("#jobs-table").innerHTML = `<div class="err empty">${esc(e.message)}</div>`);
 loadProfile().catch((e) => $("#profile-status").textContent = e.message);
 loadAutonomous().catch((e) => $("#autonomous-stats").textContent = e.message);
+setInterval(() => {
+  if (pageFromHash() !== "settings") loadAutonomous().catch(() => {});
+}, 30000);
 </script>
 </body>
 </html>
