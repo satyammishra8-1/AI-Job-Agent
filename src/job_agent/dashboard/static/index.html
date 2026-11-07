@@ -1315,6 +1315,7 @@ function renderProfileAnalysis(a) {
   $("#profile-onboarding").innerHTML = `<div class="profile-health-top"><div><span class="profile-health-label">Profile health</span><p class="profile-health-copy">Your profile is the foundation of your AI Career Agent.</p><div class="profile-completion">${pct}% complete<div class="profile-completion-track" role="progressbar" aria-label="Profile completeness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div></div></div><div><h3>${empty ? "Let’s build your career profile" : ready ? "Your profile is ready" : "Your next best step"}</h3><p class="profile-health-copy">${empty ? "Your AI Career Agent needs a few details to understand which opportunities fit you." : ready ? "Your profile has strong evidence for personalized opportunity matching." : firstMissing ? `Add ${esc(firstMissing.toLowerCase())} to strengthen your profile and improve matching.` : "Review your profile details to improve matching."}</p>${ready ? "" : `<button type="button" class="primary" data-profile-section="${firstSection}">${empty ? "Start Profile" : "Complete Profile"}</button>`}${empty ? `<div class="profile-onboarding-steps">${stepCategories.map(([label,key]) => `<span class="${categories[key] ? "is-done" : ""}">${categories[key] ? "✓" : "○"} ${esc(label)}</span>`).join("")}</div>` : ""}</div></div><div class="profile-health-metrics">${metric("Target roles",targetRoles.length ? targetRoles.join(", ") : "Not set")}${metric("Evidence-backed skills",String(evidenceSkills.length))}${metric("Projects",String(projects.length))}</div>`;
 
   const snapshot = [
+    ["Name",PROFILE.name], ["Email",PROFILE.email], ["Phone",PROFILE.phone], ["Current location",PROFILE.location],
     ["Career direction",a.career_direction], ["Target roles",targetRoles.join(", ")],
     ["Preferred location",(a.target_locations || []).join(", ") || (PROFILE.preferred_locations || []).join(", ")],
     ["Work preference",a.preferred_work_mode === "unknown" ? "Unknown" : a.preferred_work_mode],
@@ -1344,13 +1345,24 @@ function renderProfileAnalysis(a) {
 
   const educationRows = educationRecords.map((item) => `<article class="profile-data-card"><h4>${esc(item.degree)}</h4>${[["Institution",item.college],["Branch",item.field],["Graduation",item.graduation_year],["CGPA",item.cgpa]].filter(([,value]) => value !== "" && value !== null && value !== undefined).map(([label,value]) => `<p><b>${label}</b> · ${esc(value)}</p>`).join("")}</article>`);
   const educationText = educationLegacy.map((value) => `<article class="profile-data-card"><h4>${esc(value)}</h4></article>`);
-  const educationContent = [...educationRows,...educationText].join("");
-  $("#profile-education").innerHTML = educationContent || emptyState("Education details not added","Add your education to strengthen eligibility matching.","education");
+  const studyDetails = [
+    PROFILE.career_status ? prettyField(PROFILE.career_status) : "",
+    PROFILE.current_year,
+    PROFILE.expected_graduation ? `Expected graduation ${PROFILE.expected_graduation}` : ""
+  ].filter(Boolean);
+  const studyCard = studyDetails.length ? `<article class="profile-data-card"><h4>Current study</h4><p>${studyDetails.map(esc).join(" · ")}</p></article>` : "";
+  const educationCards = [...educationRows,...educationText].join("");
+  const educationPrompt = !educationCards ? emptyState("Degree and institution need confirmation","Add your degree, institution, and field of study when you are ready.","education") : "";
+  $("#profile-education").innerHTML = [studyCard,educationCards,educationPrompt].filter(Boolean).join("");
 
   const targetDirection = targetRoles.join(", ") || (a.career_direction && a.career_direction !== "unknown" ? a.career_direction : "Not set");
   const strongestSkills = a.strongest_skills || [];
   const strongestProjects = a.strongest_projects || [];
-  const missingMarkup = missing.length ? `<div class="intel-missing"><span class="intel-label">Missing information</span><ul class="profile-missing-list">${missing.map((item) => `<li><button type="button" class="text-button" data-profile-section="${sectionForMissing(item)}">${esc(item)}</button></li>`).join("")}</ul></div>` : `<div class="intel-missing"><span class="intel-label">Missing information</span><p>${ready ? "No missing information reported." : "No missing items were returned by profile analysis."}</p></div>`;
+  const needsConfirmation = [...missing];
+  if (!(PROFILE.preferred_locations || []).length) needsConfirmation.push("Preferred locations");
+  if (!PROFILE.remote_preference) needsConfirmation.push("Work preference (remote, hybrid, or onsite)");
+  const confirmationItems = [...new Set(needsConfirmation)];
+  const missingMarkup = confirmationItems.length ? `<div class="intel-missing"><span class="intel-label">Needs your confirmation</span><ul class="profile-missing-list">${confirmationItems.map((item) => `<li><button type="button" class="text-button" data-profile-section="${sectionForMissing(item)}">${esc(item)}</button></li>`).join("")}</ul></div>` : `<div class="intel-missing"><span class="intel-label">Needs your confirmation</span><p>${ready ? "No missing information reported." : "No additional details were returned by profile analysis."}</p></div>`;
   $("#profile-intelligence").innerHTML = `<article class="intelligence-card"><span class="intel-label">Profile strength</span><strong>${esc(prettyStrength)}</strong></article><article class="intelligence-card"><span class="intel-label">Strongest areas</span><strong>${esc(strongestSkills.join(", ") || "No evidence-backed skills yet")}</strong></article><article class="intelligence-card"><span class="intel-label">Target direction</span><strong>${esc(targetDirection)}</strong></article><article class="intelligence-card"><span class="intel-label">Strongest projects</span><strong>${esc(strongestProjects.join(", ") || "No evidence-backed projects yet")}</strong></article>${missingMarkup}`;
   const nextTitle = ready ? "Your profile is ready" : "Recommended next step";
   const nextCopy = ready ? "Find opportunities using your profile and evidence." : firstMissing ? `Add ${firstMissing.toLowerCase()} to improve personalized matching.` : "Review your profile sections to improve matching.";
